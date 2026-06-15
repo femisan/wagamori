@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Wagamori design tokens — 桜と金 / Rose & Gold
+   Romantic, tender, gift-forward keepsake brand.
+   Gold stays the *metallic* colour (chain, bezel, CTA);
+   rose is the emotional brand accent.
+   ============================================================ */
+:root {
+  --background: #fdf4f2;        /* soft sakura */
+  --surface: #ffffff;
+  --foreground: #4a2530;        /* deep plum */
+  --muted: #9b7a80;             /* mauve */
+  --gold: #e0b23e;              /* bright metallic gold (CTA / metal) */
+  --gold-soft: #f2dca0;
+  --rose: #d6708b;             /* sakura rose (brand accent) */
+  --rose-deep: #b85574;
+  --blush: #f7dce1;            /* soft rose tint */
+  --blush-deep: #d6708b;
+  --line: #f1ddd9;             /* soft rose line */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-rose: var(--rose);
+  --color-rose-deep: var(--rose-deep);
+  --color-blush: var(--blush);
+  --color-blush-deep: var(--blush-deep);
+  --color-line: var(--line);
+
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-fraunces);
+
+  --radius-card: 1.25rem;
+}
+
+* {
+  border-color: var(--line);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), var(--font-noto-sans-jp), "Hiragino Kaku Gothic ProN",
+    "Yu Gothic", Meiryo, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-noto-serif-jp), "Hiragino Mincho ProN",
+    "Yu Mincho", Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* Soft sakura wash so the background doesn't feel flat */
+.bg-warm-grad {
+  background:
+    radial-gradient(120% 90% at 80% -10%, #fde3e6 0%, transparent 55%),
+    radial-gradient(90% 80% at 0% 0%, #fbe7ea 0%, transparent 45%),
+    var(--background);
+}
+
+/* Brushed-gold text accent (bright metallic) */
+.text-gold-grad {
+  background: linear-gradient(100deg, #c79a36, #f6e6ad 45%, #c79a36);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Sakura-rose text accent (emotional highlight) */
+.text-rose-grad {
+  background: linear-gradient(100deg, #b85574, #e08aa3 45%, #d6708b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Floating chain animation for hero pendant */
+@keyframes sway {
+  0%, 100% { transform: rotate(-2.2deg); }
+  50% { transform: rotate(2.2deg); }
+}
+.animate-sway { animation: sway 5.5s ease-in-out infinite; transform-origin: top center; }
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.animate-floaty { animation: floaty 6s ease-in-out infinite; }
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f3dbd8 25%, #fbece9 50%, #f3dbd8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(180deg, #f0cd6d, #d2a235);
+  color: #fff;
+  box-shadow: 0 8px 24px -10px rgba(208, 162, 53, 0.7);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.btn-primary:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 12px 28px -10px rgba(208,162,53,.85); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-ghost {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
+}
+.btn-ghost:hover { border-color: var(--gold-soft); background: #fffdf9; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+input, textarea, select { font-family: inherit; }
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-sway, .animate-floaty { animation: none !important; }
+}
