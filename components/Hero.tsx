@@ -37,24 +37,27 @@ export default function Hero() {
             <Link href="/studio" className="btn-primary cursor-pointer rounded-full px-7 py-3.5 text-base font-medium">
               {t.hero.ctaPrimary}
             </Link>
-            <button
-              onClick={() => setVideoOpen(true)}
-              className="btn-ghost inline-flex cursor-pointer items-center gap-2 rounded-full px-5 py-3.5 text-sm"
-            >
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-rose/15">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="var(--rose)">
-                  <path d="M2 1.5v9l8-4.5z" />
-                </svg>
-              </span>
-              {t.hero.ctaVideo}
-            </button>
+            {/* "Watch how it works" — hidden until a brand video is configured
+                (set NEXT_PUBLIC_HERO_VIDEO to bring it back automatically). */}
+            {videoUrl && (
+              <button
+                onClick={() => setVideoOpen(true)}
+                className="btn-ghost inline-flex cursor-pointer items-center gap-2 rounded-full px-5 py-3.5 text-sm"
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-rose/15">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="var(--rose)">
+                    <path d="M2 1.5v9l8-4.5z" />
+                  </svg>
+                </span>
+                {t.hero.ctaVideo}
+              </button>
+            )}
           </div>
 
-          <div className="mt-8 flex items-center gap-5 text-sm text-muted">
-            <Stars />
-            <span>
-              <strong className="text-foreground">{t.hero.ratingScore}</strong> {t.hero.ratingFrom}
-            </span>
+          <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
+            <span>✓ {t.trust.handmade}</span>
+            <span>✓ {t.trust.shipping}</span>
+            <span>✓ {t.trust.hypo}</span>
           </div>
         </div>
 
@@ -109,14 +112,3 @@ export default function Hero() {
   );
 }
 
-function Stars() {
-  return (
-    <div className="flex gap-0.5 text-gold">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <svg key={i} width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L10 15l-5.2 2.7 1-5.9L1.5 7.7l5.9-.9z" />
-        </svg>
-      ))}
-    </div>
-  );
-}

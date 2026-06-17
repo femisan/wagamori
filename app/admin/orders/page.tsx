@@ -1,219 +1,212 @@
-import Stripe from "stripe";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import AdminStatusForm from "@/components/AdminStatusForm";
-import { formatPrice } from "@/lib/products";
-import { getServerT } from "@/lib/i18n-server";
-import { effectiveStatus } from "@/lib/fulfillment";
+"use client";
 
-// Live data + secret token check → never cache.
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+import { useEffect, useState, useCallback } from "react";
+import { ProTable, type ProColumns } from "@ant-design/pro-components";
+import { Tag, Image, Modal, Select, Input, Button, message, Space } from "antd";
 
-export const metadata = { title: "Orders" };
-
-interface Addr {
-  name?: string;
-  lines: string[];
+interface Row {
+  id: string;
+  created: number;
+  email: string;
+  amount: number;
+  paid: boolean;
+  status: string;
+  tracking: string;
+  approval: string;
+  artwork: string;
+  original: string;
+  proof: string;
+  spec: string;
+  notes: string;
+  address: string;
 }
 
-/** Pull a shipping address out of a session across Stripe API versions. */
-function extractAddress(session: Stripe.Checkout.Session): Addr | null {
-  // Newer API: collected_information.shipping_details; older: shipping_details.
-  const s = session as unknown as {
-    collected_information?: { shipping_details?: { name?: string; address?: Stripe.Address } };
-    shipping_details?: { name?: string; address?: Stripe.Address };
-    customer_details?: { name?: string; address?: Stripe.Address };
+const STATUS_LABEL: Record<string, string> = {
+  received: "受付",
+  proof: "デザイン確認",
+  crafting: "制作中",
+  shipped: "発送済み",
+};
+const STATUS_OPTS = Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }));
+
+export default function AdminOrdersPage() {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [kw, setKw] = useState("");
+  const [editing, setEditing] = useState<Row | null>(null);
+  const [editStatus, setEditStatus] = useState("received");
+  const [editTracking, setEditTracking] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const j = await fetch("/api/admin/orders").then((r) => r.json());
+      if (j.ok) setRows(j.data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch list on mount
+    load();
+  }, [load]);
+
+  const openEdit = (r: Row) => {
+    setEditing(r);
+    setEditStatus(r.status || "received");
+    setEditTracking(r.tracking || "");
   };
-  const ship =
-    s.collected_information?.shipping_details ??
-    s.shipping_details ??
-    (s.customer_details?.address ? s.customer_details : undefined);
-  const a = ship?.address;
-  if (!a) return null;
-  const lines = [
-    [a.postal_code, a.state, a.city].filter(Boolean).join(" "),
-    [a.line1, a.line2].filter(Boolean).join(" "),
-    a.country ?? "",
-  ].filter((x): x is string => Boolean(x));
-  return { name: ship?.name ?? undefined, lines };
-}
 
-export default async function AdminOrdersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const { t } = await getServerT();
-  const { token } = await searchParams;
-  const adminToken = process.env.ADMIN_TOKEN;
-  const secret = process.env.STRIPE_SECRET_KEY;
+  const save = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: editing.id, fulfillment: editStatus, tracking: editTracking }),
+      });
+      if (res.ok) {
+        message.success("更新しました");
+        setEditing(null);
+        load();
+      } else {
+        message.error("更新に失敗しました");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  // Gate: require the admin token (when one is configured).
-  const authed = adminToken ? token === adminToken : false;
+  const filtered = kw
+    ? rows.filter((r) => `${r.email} ${r.id} ${r.spec} ${r.address}`.toLowerCase().includes(kw.toLowerCase()))
+    : rows;
+
+  const columns: ProColumns<Row>[] = [
+    {
+      title: "作品",
+      dataIndex: "artwork",
+      width: 64,
+      search: false,
+      render: (_, r) =>
+        r.artwork ? <Image src={r.artwork} alt="作品" width={48} height={48} style={{ objectFit: "cover", borderRadius: 8 }} /> : "—",
+    },
+    {
+      title: "注文",
+      dataIndex: "email",
+      width: 230,
+      render: (_, r) => (
+        <div style={{ whiteSpace: "nowrap" }}>
+          <div style={{ overflow: "hidden", textOverflow: "ellipsis", maxWidth: 210 }}>{r.email || "—"}</div>
+          <div style={{ fontSize: 11, color: "#999", fontFamily: "monospace" }}>{r.id.slice(0, 16)}…</div>
+          <div style={{ fontSize: 11, color: "#999" }}>{new Date(r.created).toLocaleString("ja-JP")}</div>
+        </div>
+      ),
+    },
+    { title: "仕様", dataIndex: "spec", width: 200, ellipsis: true },
+    { title: "お届け先", dataIndex: "address", width: 220, ellipsis: true },
+    {
+      title: "金額",
+      dataIndex: "amount",
+      width: 100,
+      sorter: (a, b) => a.amount - b.amount,
+      render: (_, r) => "¥" + r.amount.toLocaleString("ja-JP"),
+    },
+    {
+      title: "支払",
+      dataIndex: "paid",
+      width: 80,
+      filters: [
+        { text: "支払済", value: true },
+        { text: "未", value: false },
+      ],
+      onFilter: (v, r) => r.paid === v,
+      render: (_, r) => (r.paid ? <Tag color="green">支払済</Tag> : <Tag>未</Tag>),
+    },
+    {
+      title: "状態",
+      dataIndex: "status",
+      width: 110,
+      filters: STATUS_OPTS.map((o) => ({ text: o.label, value: o.value })),
+      onFilter: (v, r) => r.status === v,
+      render: (_, r) => (
+        <Space direction="vertical" size={0}>
+          <Tag color="gold">{STATUS_LABEL[r.status] ?? r.status}</Tag>
+          {r.tracking && <span style={{ fontSize: 11, color: "#999" }}>{r.tracking}</span>}
+        </Space>
+      ),
+    },
+    {
+      title: "操作",
+      width: 90,
+      key: "op",
+      render: (_, r) => (
+        <a onClick={() => openEdit(r)}>編集</a>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <Header />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10 md:py-14">
-        <h1 className="font-display text-3xl">{t.admin.title}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted">{t.admin.intro}</p>
+    <div style={{ padding: 24 }}>
+      <h1 style={{ fontSize: 24, marginBottom: 16 }}>注文管理</h1>
+      <ProTable<Row>
+        rowKey="id"
+        loading={loading}
+        dataSource={filtered}
+        columns={columns}
+        search={false}
+        scroll={{ x: 1040 }}
+        options={{ reload: () => load(), setting: true, density: true }}
+        headerTitle={
+          <Input.Search
+            placeholder="メール / ID / 仕様 / 住所で検索"
+            allowClear
+            style={{ width: 320 }}
+            onChange={(e) => setKw(e.target.value)}
+          />
+        }
+        pagination={{ pageSize: 20, showSizeChanger: true }}
+      />
 
-        {!authed ? (
-          <div className="card mt-8 px-5 py-6 text-sm text-muted">{t.admin.locked}</div>
-        ) : !secret ? (
-          <div className="card mt-8 px-5 py-6 text-sm text-muted">
-            STRIPE_SECRET_KEY is not set — no live orders to show.
+      <Modal
+        title="注文を更新"
+        open={!!editing}
+        onCancel={() => setEditing(null)}
+        onOk={save}
+        confirmLoading={saving}
+        okText="更新"
+        cancelText="キャンセル"
+      >
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <div>
+            <div style={{ fontSize: 12, color: "#999" }}>制作ステータス</div>
+            <Select value={editStatus} onChange={setEditStatus} options={STATUS_OPTS} style={{ width: "100%" }} />
           </div>
-        ) : (
-          <OrderList secret={secret} token={token!} t={t} />
-        )}
-      </main>
-      <Footer />
-    </>
-  );
-}
-
-async function OrderList({
-  secret,
-  token,
-  t,
-}: {
-  secret: string;
-  token: string;
-  t: Awaited<ReturnType<typeof getServerT>>["t"];
-}) {
-  const stripe = new Stripe(secret);
-  let sessions: Stripe.Checkout.Session[] = [];
-  try {
-    const res = await stripe.checkout.sessions.list({
-      limit: 50,
-      expand: ["data.customer_details", "data.payment_intent"],
-    });
-    sessions = res.data;
-  } catch (err) {
-    return (
-      <div className="card mt-8 px-5 py-6 text-sm text-blush-deep">
-        {err instanceof Error ? err.message : "Failed to load orders."}
-      </div>
-    );
-  }
-
-  if (sessions.length === 0) {
-    return <div className="card mt-8 px-5 py-6 text-sm text-muted">{t.admin.none}</div>;
-  }
-
-  return (
-    <div className="mt-8 space-y-4">
-      {sessions.map((s) => {
-        const m = (s.metadata ?? {}) as Record<string, string>;
-        const pi = s.payment_intent && typeof s.payment_intent !== "string" ? s.payment_intent : null;
-        const pm = (pi?.metadata ?? {}) as Record<string, string>;
-        const addr = extractAddress(s);
-        const artwork = m.artwork && m.artwork.startsWith("http") ? m.artwork : null;
-        const original = m.original && m.original.startsWith("http") ? m.original : null;
-        const rawStatus = pm.fulfillment || m.fulfillment || "received";
-        const approvalVal = pm.approval || m.approval || "";
-        const proofAt = pm.proofAt || m.proofAt || "";
-        const status = effectiveStatus(rawStatus, approvalVal, proofAt, Date.now());
-        const trackingNo = pm.tracking || m.tracking || "";
-        const proofUrl = pm.proof || m.proof || "";
-        const feedback = pm.feedback || m.feedback || "";
-        const approved = approvalVal === "approved" || approvalVal === "auto";
-        const paid = s.payment_status === "paid";
-        const spec = [
-          m.style,
-          m.metal,
-          m.chain,
-          m.length,
-          m.engraving ? `“${m.engraving}”` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        const email = s.customer_details?.email ?? s.customer_email ?? "—";
-
-        return (
-          <article key={s.id} className="card grid gap-4 p-5 sm:grid-cols-[120px_1fr]">
-            {/* Artwork */}
-            <div>
-              {artwork ? (
-                <a href={artwork} target="_blank" rel="noopener noreferrer" className="block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={artwork}
-                    alt="Order artwork"
-                    className="aspect-square w-full rounded-xl object-cover ring-1 ring-line"
-                  />
-                  <span className="mt-1 block text-center text-xs text-rose underline">
-                    {t.admin.download}
-                  </span>
-                </a>
-              ) : (
-                <div className="grid aspect-square w-full place-items-center rounded-xl bg-blush/20 text-center text-[11px] text-muted">
-                  {m.artwork || "—"}
-                </div>
-              )}
-            </div>
-
-            {/* Details */}
-            <div className="min-w-0 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${
-                    paid ? "bg-green-100 text-green-800" : "bg-blush/30 text-foreground/70"
-                  }`}
-                >
-                  {paid ? t.admin.paid : t.admin.unpaid}
-                </span>
-                <span className="font-display text-lg">
-                  {s.amount_total != null ? formatPrice(s.amount_total) : "—"}
-                </span>
-                <span className="text-muted">{email}</span>
-                <span className="ml-auto font-mono text-xs text-muted">{s.id.slice(0, 18)}…</span>
-              </div>
-
-              <p className="mt-3">
-                <span className="text-muted">{t.admin.customization}: </span>
-                {spec || "—"}
-              </p>
-              {m.notes && <p className="mt-1 text-muted">“{m.notes}”</p>}
-
-              <div className="mt-3">
-                <span className="text-muted">{t.admin.address}: </span>
-                {addr ? (
-                  <span>
-                    {addr.name ? `${addr.name} / ` : ""}
-                    {addr.lines.join(", ")}
-                  </span>
-                ) : (
-                  <span className="text-muted">{t.admin.noAddress}</span>
-                )}
-              </div>
-
-              {original && (
-                <a
-                  href={original}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 inline-block text-xs text-rose underline"
-                >
-                  {t.admin.viewOriginal}
-                </a>
-              )}
-
-              <AdminStatusForm
-                token={token}
-                sessionId={s.id}
-                initialStatus={status}
-                initialTracking={trackingNo}
-                proof={proofUrl}
-                feedback={feedback}
-                approved={approved}
-              />
-            </div>
-          </article>
-        );
-      })}
+          <div>
+            <div style={{ fontSize: 12, color: "#999" }}>追跡番号</div>
+            <Input value={editTracking} onChange={(e) => setEditTracking(e.target.value)} placeholder="例) 1234-5678-9012" />
+          </div>
+          {editing?.proof && (
+            <a href={editing.proof} target="_blank" rel="noopener noreferrer">
+              現在の校正を見る
+            </a>
+          )}
+          {editing?.original && (
+            <a href={editing.original} target="_blank" rel="noopener noreferrer">
+              元写真を見る
+            </a>
+          )}
+          <Button
+            type="link"
+            href={`/track?id=${editing?.id}`}
+            target="_blank"
+            style={{ paddingLeft: 0 }}
+          >
+            顧客の追跡ページを開く
+          </Button>
+        </Space>
+      </Modal>
     </div>
   );
 }

@@ -85,6 +85,7 @@ async function OrderStatus({
   const rawStatus = pm.fulfillment || sm.fulfillment || "received";
   const approval = pm.approval || sm.approval || "";
   const proofAt = pm.proofAt || sm.proofAt || "";
+  // eslint-disable-next-line react-hooks/purity -- server component, per-request time is intended
   const now = Date.now();
   const statusKey = effectiveStatus(rawStatus, approval, proofAt, now);
   const trackingNo = pm.tracking || sm.tracking || "";
@@ -99,11 +100,11 @@ async function OrderStatus({
   const originalUrl = sm.original && sm.original.startsWith("http") ? sm.original : undefined;
 
   const summary = [
-    [t.studio.summary.style, sm.style ? t.product.styles[sm.style as keyof typeof t.product.styles]?.label ?? sm.style : null],
+    [t.studio.summary.item, t.studio.summary.itemValue],
     [t.studio.summary.metal, sm.metal ? t.product.metals[sm.metal as keyof typeof t.product.metals]?.label ?? sm.metal : null],
-    [t.studio.summary.chain, sm.chain ? `${t.product.chains[sm.chain as keyof typeof t.product.chains]?.label ?? sm.chain}${sm.length ? ` · ${sm.length}` : ""}` : null],
-    sm.engraving ? [t.studio.summary.engraving, `“${sm.engraving}”`] : null,
-  ].filter(Boolean) as [string, string][];
+    [t.studio.summary.chain, sm.length || null],
+    [t.studio.summary.engraving, sm.engraving ? `“${sm.engraving}”` : null],
+  ].filter((r) => r[1]) as [string, string][];
 
   const addr = extractAddress(session);
 

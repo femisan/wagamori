@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Stripe from "stripe";
 import QRCode from "qrcode";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -6,8 +7,10 @@ import CopyButton from "@/components/CopyButton";
 import { formatPrice } from "@/lib/products";
 import { SITE } from "@/lib/site";
 import { getServerT } from "@/lib/i18n-server";
+import { recordOrderFromSession } from "@/lib/order-record";
 
 export const metadata = { title: "Order confirmed" };
+export const dynamic = "force-dynamic";
 
 export default async function SuccessPage({
   searchParams,
@@ -18,6 +21,20 @@ export default async function SuccessPage({
   const { t } = await getServerT();
   const isDemo = sp.demo === "1";
   const amount = sp.amount ? Number(sp.amount) : null;
+
+  // Record the order to the buyer's history (no-op for guests / no DB).
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (sp.session_id && secret) {
+    try {
+      const stripe = new Stripe(secret);
+      const session = await stripe.checkout.sessions.retrieve(sp.session_id, {
+        expand: ["customer_details"],
+      });
+      await recordOrderFromSession(session);
+    } catch {
+      /* non-blocking — the confirmation page still renders */
+    }
+  }
 
   // Build the absolute tracking URL + a QR code so the customer can save it.
   const trackUrl = sp.session_id

@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { SITE } from "@/lib/site";
 import { getDict, isLocale, defaultLocale } from "@/lib/i18n";
 import { sendMail, emailShell } from "@/lib/mail";
+import { canManage } from "@/lib/role";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,9 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Body;
     const adminToken = process.env.ADMIN_TOKEN;
-    if (!adminToken || body.token !== adminToken) {
+    const tokenOk = !!adminToken && body.token === adminToken;
+    const roleOk = !tokenOk && (await canManage()); // admin/staff via Clerk
+    if (!tokenOk && !roleOk) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
     const secret = process.env.STRIPE_SECRET_KEY;

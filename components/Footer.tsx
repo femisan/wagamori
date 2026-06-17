@@ -11,7 +11,8 @@ export default function Footer() {
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-12 sm:grid-cols-2 md:grid-cols-4">
         <div className="sm:col-span-2 md:col-span-1">
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--rose)" }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/wagamori-logo.png" alt="Wagamori" className="h-7 w-7 object-contain" />
             <span className="font-display text-lg tracking-[0.16em]">WAGAMORI</span>
           </div>
           <p className="mt-3 max-w-xs text-sm text-muted">{t.footer.tagline}</p>
@@ -37,7 +38,12 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-line py-5 text-center text-xs text-muted">
-        © {new Date().getFullYear()} {SITE.name}. {t.footer.copyright}
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <Link href="/tokushoho" className="transition-colors hover:text-foreground">{t.footer.tokushoho}</Link>
+          <Link href="/privacy" className="transition-colors hover:text-foreground">{t.footer.privacy}</Link>
+          <Link href="/terms" className="transition-colors hover:text-foreground">{t.footer.terms}</Link>
+        </div>
+        <p className="mt-2">© {new Date().getFullYear()} {SITE.name}. {t.footer.copyright}</p>
       </div>
     </footer>
   );

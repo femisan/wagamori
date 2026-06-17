@@ -8,12 +8,10 @@ import NecklacePreviewCard from "@/components/NecklacePreviewCard";
 import { useI18n } from "@/components/LangProvider";
 import type { Dict } from "@/lib/i18n";
 import {
-  CHAINS,
-  CHAIN_LENGTHS,
   DEFAULT_CUSTOMIZATION,
   METALS,
-  STYLES,
   type Customization,
+  type MetalId,
   type StyleId,
   formatPrice,
   priceFor,
@@ -40,6 +38,7 @@ export default function StudioPage() {
   const [editInput, setEditInput] = useState("");
   const [editing, setEditing] = useState(false);
   const [editErr, setEditErr] = useState<string | null>(null);
+  const [designId, setDesignId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const price = useMemo(() => priceFor(c), [c]);
@@ -47,6 +46,7 @@ export default function StudioPage() {
   // Restore in-progress design ONLY when returning from login (not on a fresh
   // visit), so a previous session's preview never shows up unexpectedly.
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time restore after login reload */
     try {
       if (sessionStorage.getItem("wagamori-resume") !== "1") return;
       sessionStorage.removeItem("wagamori-resume");
@@ -67,16 +67,17 @@ export default function StudioPage() {
       if (s.subjectMode) setSubjectMode(s.subjectMode);
       if (s.connectMode) setConnectMode(s.connectMode);
       if (s.genNote) setGenNote(s.genNote);
+      if (s.designId) setDesignId(s.designId);
     } catch {
       /* ignore corrupt snapshot */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   // Persist the design so login (which reloads the page) doesn't lose it.
   useEffect(() => {
     if (!preview) return;
-    const snap = { preview, original: originalSmall, c, step, subjectMode, connectMode, genNote };
+    const snap = { preview, original: originalSmall, c, step, subjectMode, connectMode, genNote, designId };
     try {
       sessionStorage.setItem("wagamori-studio-v1", JSON.stringify(snap));
     } catch {
@@ -86,7 +87,7 @@ export default function StudioPage() {
         /* quota — give up persisting */
       }
     }
-  }, [preview, originalSmall, c, step, subjectMode, connectMode, genNote]);
+  }, [preview, originalSmall, c, step, subjectMode, connectMode, genNote, designId]);
 
   // generate() accepts the image explicitly so it can run immediately after an
   // upload (before React state has flushed) — pass the fresh file + data URL.
@@ -97,10 +98,12 @@ export default function StudioPage() {
       urlArg?: string,
       modeArg?: "all" | "solo",
       connArg?: "joined" | "linked",
+      metalArg?: MetalId,
     ) => {
       const file = fileArg ?? originalFile;
       const url = urlArg ?? original;
       if (!file || !url) return;
+      const metal = metalArg ?? c.metal;
       setC((prev) => ({ ...prev, style }));
       setGenerating(true);
       setGenNote(null);
@@ -109,7 +112,7 @@ export default function StudioPage() {
         const fd = new FormData();
         fd.append("image", file);
         fd.append("style", style);
-        fd.append("metal", c.metal);
+        fd.append("metal", metal);
         fd.append("subjects", modeArg ?? subjectMode);
         fd.append("connection", connArg ?? connectMode);
         const res = await fetch("/api/generate", { method: "POST", body: fd });
@@ -118,12 +121,12 @@ export default function StudioPage() {
           setPreview(json.image);
         } else {
           // graceful fallback so the preview always renders
-          const styled = await stylizeOnCanvas(url, style, c.metal);
+          const styled = await stylizeOnCanvas(url, style, metal);
           setPreview(styled);
           setGenNote(json.reason === "no_api_key" ? t.studio.genNote.noKey : t.studio.genNote.generic);
         }
       } catch {
-        const styled = await stylizeOnCanvas(url, style, c.metal);
+        const styled = await stylizeOnCanvas(url, style, metalArg ?? c.metal);
         setPreview(styled);
         setGenNote(t.studio.genNote.generic);
       } finally {
@@ -150,6 +153,13 @@ export default function StudioPage() {
     [preview, generating, generate, c.style, subjectMode],
   );
 
+  // Colour change is frontend-only: the preview card's metal frame (bezel +
+  // chain + bail) recolours instantly via CSS. We do NOT re-run the AI — the
+  // enamel art stays as generated, only the metal finish shown around it changes.
+  const changeMetal = useCallback((m: MetalId) => {
+    setC((prev) => ({ ...prev, metal: m }));
+  }, []);
+
   const runEdit = useCallback(async () => {
     if (!preview || !editInput.trim()) return;
     setEditing(true);
@@ -158,11 +168,21 @@ export default function StudioPage() {
       const res = await fetch("/api/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: preview, instruction: editInput, metal: c.metal }),
+        body: JSON.stringify({
+          image: preview,
+          instruction: editInput,
+          metal: c.metal,
+          designId,
+          original: designId ? undefined : originalSmall,
+          style: c.style,
+          subjects: subjectMode,
+          connection: connectMode,
+        }),
       });
       const json = await res.json();
       if (json.ok && json.image) {
         setPreview(json.image);
+        if (json.designId) setDesignId(json.designId);
         setEditInput("");
       } else if (res.status === 429) {
         setEditErr(t.studio.edit.limit);
@@ -174,7 +194,7 @@ export default function StudioPage() {
     } finally {
       setEditing(false);
     }
-  }, [preview, editInput, c.metal, t]);
+  }, [preview, editInput, c.metal, c.style, designId, originalSmall, subjectMode, connectMode, t]);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -252,12 +272,6 @@ export default function StudioPage() {
     swatch: m.swatch,
     delta: m.priceDelta,
   }));
-  const chainOptions = CHAINS.map((ch) => ({
-    id: ch.id,
-    label: t.product.chains[ch.id].label,
-    sub: t.product.chains[ch.id].desc,
-    delta: ch.priceDelta,
-  }));
 
   return (
     <>
@@ -326,25 +340,6 @@ export default function StudioPage() {
                     </SignInButton>
                   </Show>
                   <Show when="signed-in">
-                    {/* style */}
-                    <div className="mt-2">
-                      <span className="text-xs text-muted">{t.studio.preview.styleLabel}</span>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {STYLES.map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => generate(s.id)}
-                            disabled={generating}
-                            className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs transition disabled:opacity-50 ${
-                              c.style === s.id ? "border-rose bg-rose/10" : "border-line hover:border-gold-soft"
-                            }`}
-                          >
-                            {t.product.styles[s.id].label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
                     {/* connection (multiple figures) */}
                     {subjectMode === "all" && (
                       <div className="mt-2">
@@ -459,31 +454,8 @@ export default function StudioPage() {
                   label={t.studio.customize.metal}
                   options={metalOptions}
                   value={c.metal}
-                  onChange={(id) => setC({ ...c, metal: id as Customization["metal"] })}
+                  onChange={(id) => changeMetal(id as MetalId)}
                 />
-                <Choice
-                  label={t.studio.customize.chain}
-                  options={chainOptions}
-                  value={c.chain}
-                  onChange={(id) => setC({ ...c, chain: id as Customization["chain"] })}
-                />
-
-                <div>
-                  <Label>{t.studio.customize.length}</Label>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {CHAIN_LENGTHS.map((l) => (
-                      <button
-                        key={l}
-                        onClick={() => setC({ ...c, length: l })}
-                        className={`cursor-pointer rounded-full border px-4 py-2 text-sm transition ${
-                          c.length === l ? "border-rose bg-rose/10" : "border-line hover:border-gold-soft"
-                        }`}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 <div>
                   <Label>{t.studio.customize.engraving}</Label>
@@ -494,8 +466,13 @@ export default function StudioPage() {
                     placeholder={t.studio.customize.engravingPlaceholder}
                     className="mt-2 w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none focus:border-gold"
                   />
-                  <p className="mt-1 text-xs text-muted">{c.engraving.length}{t.studio.customize.charsSuffix}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {c.engraving.length}
+                    {t.studio.customize.charsSuffix} ・ {t.studio.customize.engravingNote}
+                  </p>
                 </div>
+
+                <p className="text-xs text-muted">{t.studio.customize.fixedSpec}</p>
 
                 <div className="flex gap-3">
                   <button onClick={() => setStep(2)} className="btn-ghost cursor-pointer rounded-full px-5 py-3 text-sm">
@@ -536,6 +513,7 @@ export default function StudioPage() {
                     placeholder={t.studio.checkout.notesPlaceholder}
                     className="mt-2 w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none focus:border-gold"
                   />
+                  <p className="mt-1 text-xs text-muted">{t.studio.checkout.notesHint}</p>
                 </div>
 
                 <button
@@ -667,11 +645,13 @@ function Choice({
   options,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   options: { id: string; label: string; sub?: string; swatch?: string; delta: number }[];
   value: string;
   onChange: (id: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -681,7 +661,8 @@ function Choice({
           <button
             key={o.id}
             onClick={() => onChange(o.id)}
-            className={`card cursor-pointer px-3 py-3 text-left transition hover:border-gold-soft ${
+            disabled={disabled}
+            className={`card cursor-pointer px-3 py-3 text-left transition hover:border-gold-soft disabled:cursor-not-allowed disabled:opacity-60 ${
               value === o.id ? "ring-2 ring-rose/60" : ""
             }`}
           >
@@ -706,9 +687,9 @@ function Choice({
 
 function OrderSummary({ c, price, t }: { c: Customization; price: number; t: Dict }) {
   const rows = [
-    [t.studio.summary.style, t.product.styles[c.style].label],
+    [t.studio.summary.item, t.studio.summary.itemValue],
     [t.studio.summary.metal, t.product.metals[c.metal].label],
-    [t.studio.summary.chain, `${t.product.chains[c.chain].label} · ${c.length}`],
+    [t.studio.summary.chain, c.length],
     c.engraving ? [t.studio.summary.engraving, `“${c.engraving}”`] : null,
   ].filter(Boolean) as [string, string][];
   return (

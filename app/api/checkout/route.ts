@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { auth } from "@clerk/nextjs/server";
 import { SITE } from "@/lib/site";
 import { type Customization } from "@/lib/products";
 import { getDict, isLocale, defaultLocale, type Locale } from "@/lib/i18n";
@@ -32,6 +33,9 @@ export async function POST(req: Request) {
     const origin = req.headers.get("origin") || SITE.url;
     const secret = process.env.STRIPE_SECRET_KEY;
 
+    // If the buyer is signed in, tag the order so it shows in their history.
+    const { userId } = await auth();
+
     // Metadata the seller reads to fulfil the order (forward to Taobao maker).
     const metadata: Record<string, string> = {
       style: c.style,
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
       length: c.length,
       engraving: c.engraving || "",
       notes: c.notes || "",
+      userId: userId || "",
       // Stripe metadata values cap at 500 chars; an http(s) Blob URL fits, a
       // long data URL does not — only attach when it's a real link.
       artwork:

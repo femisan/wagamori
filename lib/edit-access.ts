@@ -5,6 +5,7 @@ export interface EditAccess {
   ok: boolean;
   reason?: "unauthorized" | "rate_limited";
   remaining: number | null;
+  userId?: string;
 }
 
 // Per-user daily cap on AI edits (effectively unlimited for real use, but
@@ -29,9 +30,9 @@ export async function requireEditAccess(): Promise<EditAccess> {
     await client.users.updateUserMetadata(userId, {
       privateMetadata: { editDay: today, editCount: count + 1 },
     });
-    return { ok: true, remaining: DAILY_LIMIT - (count + 1) };
+    return { ok: true, remaining: DAILY_LIMIT - (count + 1), userId };
   } catch {
     // If the metadata check fails, allow the edit (don't block a paying user).
-    return { ok: true, remaining: null };
+    return { ok: true, remaining: null, userId };
   }
 }

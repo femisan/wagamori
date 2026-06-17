@@ -14,10 +14,12 @@ interface Props {
   className?: string;
 }
 
-const METAL_GRAD: Record<MetalId, string> = {
-  gold: "linear-gradient(135deg,#fbeebc,#e2b53c 52%,#b88a26)",
-  silver: "linear-gradient(135deg,#eef1f3,#aab0b4 55%,#7c8388)",
-  rosegold: "linear-gradient(135deg,#f3d3c8,#d89a89 55%,#b06f5e)",
+// Light → mid → dark stops per finish. Used for the bezel, the chain, and the
+// bail so changing the colour recolours the whole metal frame instantly (no AI).
+const METAL_STOPS: Record<MetalId, [string, string, string]> = {
+  gold: ["#fbeebc", "#e2b53c", "#b88a26"],
+  silver: ["#eef1f3", "#aab0b4", "#7c8388"],
+  rosegold: ["#f3d3c8", "#d89a89", "#b06f5e"],
 };
 
 /**
@@ -34,7 +36,8 @@ export default function NecklacePreviewCard({
   className = "",
 }: Props) {
   const { t } = useI18n();
-  const bezel = METAL_GRAD[metal];
+  const stops = METAL_STOPS[metal];
+  const bezel = `linear-gradient(135deg,${stops[0]},${stops[1]} 52%,${stops[2]})`;
   const metalLabel = t.product.metals[metal]?.label ?? "";
 
   return (
@@ -56,7 +59,7 @@ export default function NecklacePreviewCard({
 
         {/* Chain + pendant */}
         <div className="relative mt-1 flex flex-col items-center">
-          <Chain bezel={bezel} />
+          <Chain stops={stops} metal={metal} />
 
           <div className="animate-sway -mt-[2px]">
             {/* bezel ring */}
@@ -89,7 +92,7 @@ export default function NecklacePreviewCard({
               {/* bail (loop) */}
               <div
                 className="absolute -top-3 left-1/2 h-5 w-3 -translate-x-1/2 rounded-full border-[3px]"
-                style={{ borderColor: "var(--gold)" }}
+                style={{ borderColor: stops[1] }}
               />
             </div>
           </div>
@@ -104,7 +107,7 @@ export default function NecklacePreviewCard({
               {t.cardCaption}
             </p>
           )}
-          <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted">
+          <p className="mx-auto mt-1 max-w-[260px] text-[11px] uppercase tracking-[0.1em] text-muted">
             {metalLabel}
           </p>
         </div>
@@ -113,9 +116,10 @@ export default function NecklacePreviewCard({
   );
 }
 
-function Chain({ bezel }: { bezel: string }) {
+function Chain({ stops, metal }: { stops: [string, string, string]; metal: MetalId }) {
   // A small V of beads forming the chain down to the pendant bail.
   const beads = 9;
+  const gradId = `chainGrad-${metal}`;
   return (
     <svg width="240" height="74" viewBox="0 0 240 74" className="overflow-visible">
       {Array.from({ length: beads }).map((_, i) => {
@@ -123,13 +127,13 @@ function Chain({ bezel }: { bezel: string }) {
         const x = 6 + t * (240 - 12);
         // parabola dipping to center
         const y = 6 + Math.pow((t - 0.5) * 2, 2) * 0 + (1 - Math.sin(t * Math.PI)) * 60;
-        return <circle key={`l${i}`} cx={x} cy={y} r="3.1" fill="url(#chainGrad)" />;
+        return <circle key={`l${i}`} cx={x} cy={y} r="3.1" fill={`url(#${gradId})`} />;
       })}
       <defs>
-        <linearGradient id="chainGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#fbeebc" />
-          <stop offset="60%" stopColor="#e2b53c" />
-          <stop offset="100%" stopColor="#b88a26" />
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={stops[0]} />
+          <stop offset="60%" stopColor={stops[1]} />
+          <stop offset="100%" stopColor={stops[2]} />
         </linearGradient>
       </defs>
     </svg>
@@ -140,9 +144,10 @@ function HeartIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" className="opacity-50">
       <path
-        d="M12 20s-7-4.5-9.3-9C1.2 8 2.6 4.8 5.8 4.8c2 0 3.3 1.3 4.2 2.6.9-1.3 2.2-2.6 4.2-2.6 3.2 0 4.6 3.2 3.1 6.2C19 15.5 12 20 12 20Z"
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
         stroke="currentColor"
         strokeWidth="1.4"
+        strokeLinejoin="round"
       />
     </svg>
   );

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI, { toFile } from "openai";
 import { requireEditAccess } from "@/lib/edit-access";
+import { putDataUrl } from "@/lib/blob";
+import { createDesign, addVersion, versionCount } from "@/lib/db/designs";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -18,11 +20,17 @@ const METAL_WORD: Record<string, string> = {
  */
 export async function POST(req: Request) {
   try {
-    const { image, instruction, metal } = (await req.json()) as {
-      image?: string;
-      instruction?: string;
-      metal?: string;
-    };
+    const { image, instruction, metal, designId, original, style, subjects, connection } =
+      (await req.json()) as {
+        image?: string;
+        instruction?: string;
+        metal?: string;
+        designId?: string;
+        original?: string;
+        style?: string;
+        subjects?: string;
+        connection?: string;
+      };
 
     if (!image?.startsWith("data:") || !instruction?.trim()) {
       return NextResponse.json({ ok: false, error: "bad_request" }, { status: 400 });
@@ -66,8 +74,43 @@ export async function POST(req: Request) {
 
     const b64 = result.data?.[0]?.b64_json;
     if (!b64) return NextResponse.json({ ok: false, error: "empty" }, { status: 502 });
+    const editedDataUrl = `data:image/png;base64,${b64}`;
 
-    return NextResponse.json({ ok: true, image: `data:image/png;base64,${b64}`, remaining: access.remaining });
+    // Save the conversation history (best-effort; never block the edit result).
+    let outDesignId = designId;
+    try {
+      if (access.userId) {
+        // First edit on this design → create it and save the base version.
+        if (!outDesignId) {
+          const originalUrl = original ? await putDataUrl(original, "original") : null;
+          const design = await createDesign(access.userId, originalUrl);
+          if (design) {
+            outDesignId = design.id;
+            const baseUrl = await putDataUrl(image, "v");
+            if (baseUrl) {
+              await addVersion({
+                designId: design.id, round: 0, source: "ai", instruction: null,
+                imageUrl: baseUrl, style, metal, subjects, connection,
+              });
+            }
+          }
+        }
+        if (outDesignId) {
+          const editedUrl = await putDataUrl(editedDataUrl, "v");
+          if (editedUrl) {
+            const round = await versionCount(outDesignId);
+            await addVersion({
+              designId: outDesignId, round, source: "edit", instruction: instruction.slice(0, 300),
+              imageUrl: editedUrl, style, metal, subjects, connection,
+            });
+          }
+        }
+      }
+    } catch {
+      /* history save failed — ignore, the edit still returns */
+    }
+
+    return NextResponse.json({ ok: true, image: editedDataUrl, designId: outDesignId, remaining: access.remaining });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Edit failed";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

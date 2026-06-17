@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Hero from "@/components/Hero";
 import Faq from "@/components/Faq";
+import ShowcaseTeaser from "@/components/ShowcaseTeaser";
 import { useI18n } from "@/components/LangProvider";
 
 const GALLERY_SRC = ["/gallery/1.jpg", "/gallery/2.jpg", "/gallery/3.jpg", "/gallery/4.jpg"];
@@ -62,6 +63,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Buyer-show teaser (hidden until customers post) */}
+      <ShowcaseTeaser />
+
       {/* Emotional value */}
       <section className="mx-auto max-w-5xl px-5 py-20 text-center">
         <p className="font-display text-3xl italic leading-snug text-foreground/90 md:text-4xl">
@@ -76,20 +80,15 @@ export default function Home() {
           <Header2 kicker={t.reviews.kicker} title={t.reviews.title} />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {t.reviews.items.map((r) => (
-              <blockquote key={r.name} className="card p-7">
-                <div className="flex gap-0.5 text-gold">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg key={i} width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L10 15l-5.2 2.7 1-5.9L1.5 7.7l5.9-.9z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="mt-4 text-foreground/90">{r.text}</p>
-                <footer className="mt-4 text-sm">
-                  <span className="font-medium">{r.name}</span>
-                  <span className="text-muted"> · {r.role}</span>
-                </footer>
-              </blockquote>
+              <div key={r.title} className="card p-7">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-rose/10">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="1.8">
+                    <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <h3 className="mt-4 font-display text-xl">{r.title}</h3>
+                <p className="mt-2 text-muted">{r.text}</p>
+              </div>
             ))}
           </div>
         </div>
