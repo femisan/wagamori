@@ -16,12 +16,13 @@ live instantly (no redeploy) and is auto-pinged to Bing via IndexNow.
 copy + a cover image + 2–4 inline illustrations, all web-optimized. Never ship a
 text-only post unless the user explicitly asks for `--no-images`.
 
-## Workflow (4 steps)
+## Workflow (5 steps)
 
 1. **Write** `index.md` (answer-first copy) with image placeholders planned in.
 2. **Illustrate** — generate cover + 2–4 inline images with smart-illustrator (Gemini).
 3. **Optimize & assemble** — convert to web JPGs, lay out the zip folder.
-4. **Package** the `.zip` and hand it to the user (or upload at `/admin/blog`).
+4. **Self-check** — verify every reference resolves, BEFORE zipping (don't skip).
+5. **Package** the `.zip` and hand it to the user (or upload at `/admin/blog`).
 
 ---
 
@@ -165,7 +166,30 @@ my-post/
 
 ---
 
-## 4. Package the .zip
+## 4. Self-check (zip 前に必ず実行)
+
+Run the bundled script **before zipping**. It exits non-zero (and prints `❌`) if
+`index.md` references an image not in the folder, if the frontmatter `cover` is
+missing, or if there are fewer than 2 inline images; it warns (⚠, non-fatal) when the
+answer-first / `/studio` CTA / internal-link conventions are missing.
+
+```bash
+bash ~/.claude/skills/wagamori-blog/scripts/check.sh my-post
+# or from inside the folder:  cd my-post && bash ~/.claude/skills/wagamori-blog/scripts/check.sh
+```
+
+Hard checks (✗ → must fix before zipping):
+1. every body `![](images/…)` / `cover.*` reference exists on disk
+2. frontmatter `cover:` file exists
+3. ≥ 2 inline images (图文并茂)
+
+Warnings (⚠ → should fix): `**結論：…**` lead, `(/studio)` CTA, `(/blog/…)` internal link.
+
+Only proceed to packaging when it prints `✅ self-check passed`.
+
+---
+
+## 5. Package the .zip
 
 ```bash
 cd my-post && zip -q -r ../my-post.zip index.md cover.jpg images/
@@ -177,13 +201,46 @@ paths to Blob URLs — so relative paths in the zip are correct.
 
 ---
 
-## 5. Upload (公開)
+## 6. Upload (公開)
 
 1. `/admin/blog`（管理者ログイン）を開く
 2. **「記事 zip をアップロード」** で zip を選択
 3. 自動で: 解凍 → 画像を Blob へ → markdown を HTML 化 → DB 保存 → **即公開**
 4. 公開時に **IndexNow** で Bing 等へ自動通知、**sitemap** にも自動反映
 5. 重要記事は公開後、**Google Search Console** で該当 URL を「インデックス登録をリクエスト」すると収録が早い
+
+---
+
+## 7. 公開後の SEO 最適化（Google / Bing）
+
+サイト側は自動化済み：公開時に **IndexNow が `/blog/<slug>` と `/blog` を Bing 等へ自動 ping**、
+`sitemap.xml`（`https://wagamori.com/sitemap.xml`）も DB から自動更新される（再デプロイ不要）。
+その上で、新記事ごとに以下を手動で行うと収録・流入が早まる。
+
+### Google Search Console（gsc / search.google.com/search-console）
+1. **URL 検査**に `https://wagamori.com/blog/<slug>` を入力 →「**インデックス登録をリクエスト**」（新記事ごとの最重要アクション）。
+2. 数日後にもう一度 URL 検査し、「**インデックス登録済み**」になったか確認（"検出のみ/クロール済み未登録" なら内部リンク・本文を強化）。
+3. **サイトマップ**未登録なら `sitemap.xml` を一度 Submit（以後は自動反映）。
+4. 1〜2 週間後、**検索パフォーマンス**でその URL のクエリ・表示回数・CTR を確認 → タイトル/`description` を改善（クリックされる言い回しへ）。
+
+**直達リンク**（プロパティ＝ドメイン `sc-domain:wagamori.com`。URL プレフィックス型なら `resource_id` を `https://wagamori.com/` に。`resource_id` は**percent-encodeしない**＝コロンはそのまま）:
+- サイトマップ: `https://search.google.com/search-console/sitemaps?resource_id=sc-domain:wagamori.com`
+- 検索パフォーマンス: `https://search.google.com/search-console/performance?resource_id=sc-domain:wagamori.com`
+- インデックス作成（ページ）: `https://search.google.com/search-console/index?resource_id=sc-domain:wagamori.com`
+
+> **URL 検査には固定の直達リンクが無い**（`inspect?id=<URL>` は共有用ハッシュ専用で、生 URL を渡すと 404）。プロパティを開き、**画面上部の検査窓に記事 URL を貼る**のが唯一確実な方法。`https://search.google.com/search-console?resource_id=sc-domain:wagamori.com` を開いてから貼る。複数 Google アカウントでログイン中は `search.google.com/u/1/search-console/...` のように `/u/N/` が要ることもある。
+
+### Bing Webmaster Tools（bing.com/webmasters）
+1. **IndexNow** タブで該当 URL の送信履歴を確認（公開時に自動送信済み）。反映が遅い時だけ **URL 送信（Submit URLs）** で手動送信（日次クォータあり）。
+2. **Sitemaps** で `sitemap.xml` の Discovered 件数が増えているか確認。
+3. **AI Performance(BETA)** で、ChatGPT/Copilot 等の AI 回答での表示・引用状況を確認（Bing 索引が AI 検索の前提）。
+
+### オン/オフページ強化（記事ごと）
+- **内部リンク**：関連する既存記事から新記事へ 1〜2 本リンクを足す（回遊・評価向上）。本文側からも `(/blog/…)` と `(/studio)` を必ず張る。
+- **外部シグナル**：Instagram 等で記事をシェアし流入を作る（新規ドメインの収録加速に有効）。
+- **見直し**：公開後に CTR が低ければ title/description を、滞在が短ければ冒頭の「結論」を磨く。
+
+> 目安：新規ドメインでは収録に数日〜2〜3週間かかる。技術側（sitemap / IndexNow / robots）は整っているので、あとは記事数と被リンク・流入の蓄積が効く。
 
 ---
 
