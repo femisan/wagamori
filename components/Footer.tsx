@@ -36,6 +36,7 @@ export default function Footer() {
         <FooterCol title={t.footer.follow}>
           <FooterLink href={SITE.instagram}>Instagram</FooterLink>
           {SITE.tiktok && <FooterLink href={SITE.tiktok}>TikTok</FooterLink>}
+          <FooterLink href={SITE.twitter}>X (Twitter)</FooterLink>
         </FooterCol>
       </div>
 

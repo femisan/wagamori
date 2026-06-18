@@ -9,6 +9,7 @@ export const SITE = {
   email: "wagamori.info@gmail.com",
   instagram: "https://www.instagram.com/wagamori.studio",
   tiktok: "", // set when a real TikTok account exists
+  twitter: "https://x.com/wagamori_studio",
   // LINE official account URL for CS / design consultation (set in env).
   lineUrl: process.env.NEXT_PUBLIC_LINE_URL || "",
   currency: "jpy",
