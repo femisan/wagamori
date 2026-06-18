@@ -29,6 +29,7 @@ const ja = {
     myDesigns: "マイデザイン",
     myOrders: "注文履歴",
     showcase: "みんなの実物",
+    blog: "ブログ",
     tryFree: "無料でためす",
   },
   myDesigns: {
@@ -114,6 +115,7 @@ const ja = {
     items: [
       { q: "プレビューはどう動きますか？", a: "写真や絵をアップロードすると、すぐにネックレスのペンダントとして表示されます。無料・登録不要です。その後アトリエが最終デザインを手仕上げしてからお作りします。" },
       { q: "素材は何ですか？", a: "シルバー925（スターリングシルバー）をベースに、18金またはローズゴールドをコーティング（シルバーそのままの色も選べます）。金属アレルギー対応・変色しにくく、毎日着けられます。" },
+      { q: "ネックレス以外の形もありますか？", a: "はい。ネックレス・ブレスレット・キーホルダー（バッグチャーム）からお選びいただけます。小さなお子さまにネックレスを引っぱられやすい方には、手首につけるブレスレットや、バッグ・鍵に着けるキーホルダーがおすすめです。同じデザインのまま、お好きな形でお作りします。" },
       { q: "どのくらいかかりますか？", a: "ご注文からお届けまで通常14〜20日です（デザイン確定 → ひとつずつ手作り → 追跡付きで国際配送）。お急ぎの場合は加急料金で対応できますので、ご購入時の備考欄に「いつまでに必要か」をご記入ください。" },
       { q: "どんな写真が向いていますか？", a: "被写体が正面を向いた、明るく鮮明な写真が最適です。お子さまの絵は無地の背景で平らに撮るときれいです。どちらも当方で整えます。" },
       { q: "送料・返品について", a: "世界中送料無料です。一点ずつのオーダーメイドのため返品はお受けできませんが、100%満足保証付き。不具合があれば作り直します。" },
@@ -132,6 +134,7 @@ const ja = {
     faqShipping: "よくある質問・配送",
     contact: "お問い合わせ",
     follow: "フォロー",
+    guide: "子供の絵の残し方ガイド",
     tokushoho: "特定商取引法に基づく表記",
     privacy: "プライバシーポリシー",
     terms: "利用規約",
@@ -192,9 +195,11 @@ const ja = {
     },
     customize: {
       title: "あなただけの一点に",
+      form: "タイプ",
       colorNote: "仕上げの色は全3色。価格はどの色でも同じです。",
       metal: "色（全3色・同価格）",
       fixedSpec: "チェーン長さ 45cm ・ 発送前にアトリエが手仕上げします。",
+      handNote: "発送前にアトリエが手仕上げします。",
       chain: "チェーン",
       length: "長さ",
       engraving: "裏面の刻印（任意）",
@@ -301,6 +306,11 @@ const ja = {
     loading: "読み込み中…",
     nameSuffix: " さん",
     anonName: "お客様",
+    metaTitle: "お客様の実物ギャラリー｜子供の絵・ペット写真のオーダーメイドネックレス",
+    metaDescription:
+      "実際にお届けしたオーダーメイドネックレスの写真ギャラリー。お子さまの絵やペットの写真から、職人がひとつずつ手作り。名入れ・刻印対応、世界中へ送料無料。",
+    intro:
+      "お子さまが描いた似顔絵や、大切なペットの写真を、職人がひとつずつ手作りのネックレスに。名入れ・刻印にも対応し、出産祝い・誕生日・母の日のギフトにも人気です。下は実際にお届けした作品です。",
   },
   share: {
     title: "サンプル画像を保存・シェア",
@@ -310,6 +320,9 @@ const ja = {
     yourPhoto: "あなたの写真",
     tagline: "心の、いちばん近くで。",
     building: "画像を作成中…",
+    cta: "あなたも無料でつくれる",
+    scanHint: "QRを長押し / サイトでご注文",
+    makeButton: "シェア画像をつくる",
   },
   email: {
     subject: "【Wagamori】ご注文ありがとうございます — 追跡リンク",
@@ -337,6 +350,11 @@ const ja = {
       cable: { label: "ケーブルチェーン", desc: "毎日使える繊細さ" },
       rope: { label: "ロープチェーン", desc: "存在感のある編み込み" },
       satellite: { label: "サテライトチェーン", desc: "小さな珠でほのかに煌めく" },
+    },
+    forms: {
+      necklace: { label: "ネックレス", desc: "胸もと、心のいちばん近くに" },
+      bracelet: { label: "ブレスレット", desc: "手首に。お子さまに引っぱられにくい" },
+      keychain: { label: "キーホルダー / バッグチャーム", desc: "バッグや鍵に着けて、いつも一緒に" },
     },
   },
   admin: {
@@ -381,6 +399,7 @@ const en = {
     myDesigns: "My designs",
     myOrders: "My orders",
     showcase: "Customer photos",
+    blog: "Blog",
     tryFree: "Try it free",
   },
   myDesigns: {
@@ -466,6 +485,7 @@ const en = {
     items: [
       { q: "How does the preview work?", a: "Upload any photo or drawing and our tool instantly shows it as pendant art on a necklace — free, no account needed. Our studio then hand-finishes the final artwork before crafting." },
       { q: "What materials do you use?", a: "A sterling silver 925 base, coated in 18k gold or rose gold (or left as bare silver). All hypoallergenic, tarnish-resistant, and made to be worn every day." },
+      { q: "Do you offer forms other than a necklace?", a: "Yes — choose a necklace, a bracelet, or a keychain / bag charm. If a little one tends to grab necklaces, a wrist bracelet or a keychain clipped to a bag or keys works great. Same design, your choice of form." },
       { q: "How long does it take?", a: "From order to delivery is usually 14–20 days (design finalized → handcrafted one by one → shipped worldwide with tracking). Need it sooner? We offer a rush option — just note your deadline at checkout and we'll arrange it for an additional fee." },
       { q: "What photos work best?", a: "Clear, well-lit images with the subject facing the camera. For kids' drawings, a flat photo on a plain background is perfect. We'll clean it up either way." },
       { q: "Shipping & returns?", a: "Free worldwide shipping. Because each piece is personalized we can't accept returns, but we stand behind every order with a 100% happiness guarantee — if something's wrong, we'll remake it." },
@@ -484,6 +504,7 @@ const en = {
     faqShipping: "FAQ & shipping",
     contact: "Contact us",
     follow: "Follow",
+    guide: "Kids' art ideas",
     tokushoho: "Commercial transaction disclosure",
     privacy: "Privacy Policy",
     terms: "Terms of Service",
@@ -544,9 +565,11 @@ const en = {
     },
     customize: {
       title: "Make it yours",
+      form: "Type",
       colorNote: "Three finishes — the price is the same for every colour.",
       metal: "Colour (3 finishes · same price)",
       fixedSpec: "45cm chain · hand-finished by our atelier before it ships.",
+      handNote: "Hand-finished by our atelier before it ships.",
       chain: "Chain",
       length: "Length",
       engraving: "Engraving on the back (optional)",
@@ -653,6 +676,11 @@ const en = {
     loading: "Loading…",
     nameSuffix: "",
     anonName: "Customer",
+    metaTitle: "Customer gallery | Custom necklaces from kids' drawings & pet photos",
+    metaDescription:
+      "Real photos of custom necklaces we've delivered — handcrafted one by one from your child's drawing or pet photo. Engraving available, free worldwide shipping.",
+    intro:
+      "We turn your child's drawing or your pet's photo into a handcrafted necklace, made one by one — with optional engraving. A loved gift for new babies, birthdays and Mother's Day. Below are real pieces we've shipped.",
   },
   share: {
     title: "Save & share your sample",
@@ -662,6 +690,9 @@ const en = {
     yourPhoto: "your photo",
     tagline: "Closest to your heart",
     building: "Building image…",
+    cta: "Make yours, free",
+    scanHint: "Scan the QR or visit to order",
+    makeButton: "Create a shareable image",
   },
   email: {
     subject: "Your Wagamori order — tracking link",
@@ -689,6 +720,11 @@ const en = {
       cable: { label: "Cable Chain", desc: "Everyday delicate" },
       rope: { label: "Rope Chain", desc: "Textured & substantial" },
       satellite: { label: "Satellite Chain", desc: "Tiny beads, subtle sparkle" },
+    },
+    forms: {
+      necklace: { label: "Necklace", desc: "Worn close to the heart" },
+      bracelet: { label: "Bracelet", desc: "On the wrist — out of little hands' reach" },
+      keychain: { label: "Keychain / Bag charm", desc: "Clip it to a bag, pouch or keys" },
     },
   },
   admin: {

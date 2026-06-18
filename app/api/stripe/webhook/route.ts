@@ -77,10 +77,11 @@ async function sendTrackingEmail(session: Stripe.Checkout.Session) {
     <p style="color:#9b7a80;line-height:1.6;margin:0 0 20px">${t.body}</p>
     <a href="${trackUrl}" style="display:inline-block;background:#d2a235;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">${t.cta}</a>
     <p style="font-size:12px;color:#9b7a80;margin:24px 0 0;word-break:break-all">${trackUrl}</p>
-    <p style="font-size:12px;color:#c9b8bc;margin:16px 0 0">${t.footer}</p>
+    <p style="font-size:12px;color:#9b7a80;margin:16px 0 0">お問い合わせ / Contact: <a href="mailto:${SITE.email}" style="color:#ca8a04">${SITE.email}</a></p>
+    <p style="font-size:12px;color:#c9b8bc;margin:8px 0 0">${t.footer}</p>
   </div>`;
 
   const resend = new Resend(apiKey);
-  const res = await resend.emails.send({ from, to, subject: t.subject, html });
+  const res = await resend.emails.send({ from, to, subject: t.subject, html, replyTo: SITE.email });
   return { to, from, id: res.data?.id ?? null, error: res.error ?? null };
 }

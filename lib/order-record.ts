@@ -14,6 +14,7 @@ export async function recordOrderFromSession(session: Stripe.Checkout.Session) {
   if (!userId) return;
 
   const spec = JSON.stringify({
+    form: m.form || "necklace",
     style: m.style || "enamel",
     metal: m.metal || "gold",
     chain: m.chain || "cable",

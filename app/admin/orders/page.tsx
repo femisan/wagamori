@@ -19,6 +19,8 @@ interface Row {
   spec: string;
   notes: string;
   address: string;
+  addressCopy: string;
+  phone: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -79,8 +81,17 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const copyAddress = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success("住所をコピーしました");
+    } catch {
+      message.error("コピーに失敗しました");
+    }
+  };
+
   const filtered = kw
-    ? rows.filter((r) => `${r.email} ${r.id} ${r.spec} ${r.address}`.toLowerCase().includes(kw.toLowerCase()))
+    ? rows.filter((r) => `${r.email} ${r.id} ${r.spec} ${r.address} ${r.phone}`.toLowerCase().includes(kw.toLowerCase()))
     : rows;
 
   const columns: ProColumns<Row>[] = [
@@ -105,7 +116,29 @@ export default function AdminOrdersPage() {
       ),
     },
     { title: "仕様", dataIndex: "spec", width: 200, ellipsis: true },
-    { title: "お届け先", dataIndex: "address", width: 220, ellipsis: true },
+    {
+      title: "お届け先",
+      dataIndex: "address",
+      width: 260,
+      render: (_, r) => (
+        <div style={{ whiteSpace: "normal", fontSize: 12 }}>
+          <div>{r.address || "—"}</div>
+          {r.phone && <div style={{ color: "#666", marginTop: 2 }}>TEL: {r.phone}</div>}
+          {r.addressCopy && (
+            <a
+              onClick={() => copyAddress(r.addressCopy)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 12 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <rect x="9" y="9" width="11" height="11" rx="2" />
+                <path d="M5 15V5a2 2 0 0 1 2-2h10" strokeLinecap="round" />
+              </svg>
+              住所をコピー
+            </a>
+          )}
+        </div>
+      ),
+    },
     {
       title: "金額",
       dataIndex: "amount",

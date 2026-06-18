@@ -1,37 +1,59 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { composeShareImage } from "@/lib/share";
+import { SITE } from "@/lib/site";
 import { useI18n } from "./LangProvider";
 
 interface Props {
   preview: string;
   original?: string;
   engraving?: string;
+  /** Add a QR + URL + CTA band that drives viewers back to the site to order. */
+  withQr?: boolean;
 }
 
 /** Renders a single shareable image (necklace preview + the user's photo) with
- *  save + share controls. */
-export default function ShareCard({ preview, original, engraving }: Props) {
+ *  save + share controls. With `withQr`, adds a scannable QR + site link. */
+export default function ShareCard({ preview, original, engraving, withQr = false }: Props) {
   const { t } = useI18n();
   const [img, setImg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    composeShareImage({
-      preview,
-      original,
-      engraving,
-      tagline: t.share.tagline,
-      yourPhotoLabel: t.share.yourPhoto,
-    })
-      .then((url) => alive && setImg(url))
-      .catch(() => {});
+    (async () => {
+      let qr: string | undefined;
+      if (withQr) {
+        try {
+          qr = await QRCode.toDataURL(`${SITE.url}/?utm_source=share`, {
+            margin: 1,
+            width: 360,
+            color: { dark: "#4a2530", light: "#ffffff" },
+          });
+        } catch {
+          /* QR optional */
+        }
+      }
+      const url = await composeShareImage({
+        preview,
+        original,
+        engraving,
+        logo: "/brand/wagamori-logo.png",
+        tagline: t.share.tagline,
+        yourPhotoLabel: t.share.yourPhoto,
+        qr,
+        url: withQr ? SITE.url.replace(/^https?:\/\//, "") : undefined,
+        cta: t.share.cta,
+        scanHint: t.share.scanHint,
+      });
+      if (alive) setImg(url);
+    })().catch(() => {});
     return () => {
       alive = false;
     };
-  }, [preview, original, engraving, t.share.tagline, t.share.yourPhoto]);
+  }, [preview, original, engraving, withQr, t]);
 
   const download = () => {
     if (!img) return;

@@ -45,6 +45,23 @@ export const showcasePosts = pgTable("showcase_posts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Blog posts — uploaded as a zip from the admin (markdown/html + images),
+// stored here so they appear instantly without a redeploy.
+export const blogPosts = pgTable("blog_posts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  coverUrl: text("cover_url"),
+  bodyHtml: text("body_html").notNull(), // rendered HTML (from md or provided html)
+  excerpt: text("excerpt"),
+  tags: text("tags"), // comma-separated
+  status: text("status").default("published").notNull(), // published | draft
+  date: text("date"), // YYYY-MM-DD (display/sort)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Orders, linked to Stripe + the design. Mirrors key fields for fast admin
 // filtering/sorting (Stripe stays the source of truth for payment).
 export const orders = pgTable("orders", {

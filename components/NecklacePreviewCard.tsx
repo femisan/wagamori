@@ -1,6 +1,6 @@
 "use client";
 
-import { type MetalId, type StyleId } from "@/lib/products";
+import { type MetalId, type StyleId, type FormId } from "@/lib/products";
 import { useI18n } from "./LangProvider";
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   src?: string | null;
   metal?: MetalId;
   style?: StyleId;
+  /** Form factor — changes the top hardware (chain / split-ring / wrist band). */
+  form?: FormId;
   engraving?: string;
   /** Show the loading shimmer instead of the image. */
   loading?: boolean;
@@ -31,6 +33,7 @@ export default function NecklacePreviewCard({
   src,
   metal = "gold",
   style = "enamel",
+  form = "necklace",
   engraving,
   loading = false,
   className = "",
@@ -39,6 +42,7 @@ export default function NecklacePreviewCard({
   const stops = METAL_STOPS[metal];
   const bezel = `linear-gradient(135deg,${stops[0]},${stops[1]} 52%,${stops[2]})`;
   const metalLabel = t.product.metals[metal]?.label ?? "";
+  const formLabel = t.product.forms?.[form]?.label ?? "";
 
   return (
     <div
@@ -57,9 +61,9 @@ export default function NecklacePreviewCard({
           </span>
         </div>
 
-        {/* Chain + pendant */}
+        {/* Top hardware (chain / split-ring / wrist band) + pendant */}
         <div className="relative mt-1 flex flex-col items-center">
-          <Chain stops={stops} metal={metal} />
+          <TopHardware form={form} stops={stops} metal={metal} />
 
           <div className="animate-sway -mt-[2px]">
             {/* bezel ring */}
@@ -107,8 +111,8 @@ export default function NecklacePreviewCard({
               {t.cardCaption}
             </p>
           )}
-          <p className="mx-auto mt-1 max-w-[260px] text-[11px] uppercase tracking-[0.1em] text-muted">
-            {metalLabel}
+          <p className="mx-auto mt-1 max-w-[280px] text-[11px] uppercase tracking-[0.1em] text-muted">
+            {[formLabel, metalLabel].filter(Boolean).join(" ・ ")}
           </p>
         </div>
       </div>
@@ -116,26 +120,66 @@ export default function NecklacePreviewCard({
   );
 }
 
-function Chain({ stops, metal }: { stops: [string, string, string]; metal: MetalId }) {
-  // A small V of beads forming the chain down to the pendant bail.
+function TopHardware({
+  form,
+  stops,
+  metal,
+}: {
+  form: FormId;
+  stops: [string, string, string];
+  metal: MetalId;
+}) {
+  const gradId = `mg-${metal}`;
+  const fill = `url(#${gradId})`;
+  const grad = (
+    <defs>
+      <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor={stops[0]} />
+        <stop offset="60%" stopColor={stops[1]} />
+        <stop offset="100%" stopColor={stops[2]} />
+      </linearGradient>
+    </defs>
+  );
+
+  if (form === "keychain") {
+    // A split key-ring + short chain down to the charm.
+    return (
+      <svg width="240" height="74" viewBox="0 0 240 74" className="overflow-visible">
+        {grad}
+        <circle cx="120" cy="20" r="13" fill="none" stroke={fill} strokeWidth="4.5" />
+        {[40, 52, 64].map((y, i) => (
+          <circle key={i} cx="120" cy={y} r="3.1" fill={fill} />
+        ))}
+      </svg>
+    );
+  }
+
+  if (form === "bracelet") {
+    // A horizontal beaded band (the wrist strap) with the charm dropping from center.
+    return (
+      <svg width="240" height="74" viewBox="0 0 240 74" className="overflow-visible">
+        {grad}
+        {Array.from({ length: 17 }).map((_, i) => (
+          <circle key={i} cx={8 + i * (224 / 16)} cy="16" r="3.1" fill={fill} />
+        ))}
+        {[34, 50, 64].map((y, i) => (
+          <circle key={`d${i}`} cx="120" cy={y} r="3.1" fill={fill} />
+        ))}
+      </svg>
+    );
+  }
+
+  // Necklace: a small V of beads down to the bail.
   const beads = 9;
-  const gradId = `chainGrad-${metal}`;
   return (
     <svg width="240" height="74" viewBox="0 0 240 74" className="overflow-visible">
+      {grad}
       {Array.from({ length: beads }).map((_, i) => {
         const t = i / (beads - 1);
         const x = 6 + t * (240 - 12);
-        // parabola dipping to center
-        const y = 6 + Math.pow((t - 0.5) * 2, 2) * 0 + (1 - Math.sin(t * Math.PI)) * 60;
-        return <circle key={`l${i}`} cx={x} cy={y} r="3.1" fill={`url(#${gradId})`} />;
+        const y = 6 + (1 - Math.sin(t * Math.PI)) * 60;
+        return <circle key={i} cx={x} cy={y} r="3.1" fill={fill} />;
       })}
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={stops[0]} />
-          <stop offset="60%" stopColor={stops[1]} />
-          <stop offset="100%" stopColor={stops[2]} />
-        </linearGradient>
-      </defs>
     </svg>
   );
 }

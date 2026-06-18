@@ -23,10 +23,10 @@ export async function POST(req: Request) {
     const locale = isLocale(body.locale) ? body.locale : defaultLocale;
     const t = getDict(locale);
 
-    const styleLabel = t.product.styles[c.style]?.label ?? c.style;
+    const formLabel = t.product.forms?.[c.form]?.label ?? c.form ?? "necklace";
     const metalLabel = t.product.metals[c.metal]?.label ?? c.metal;
-    const chainLabel = t.product.chains[c.chain]?.label ?? c.chain;
-    const descParts = [styleLabel, metalLabel, `${chainLabel} ${c.length}`];
+    const descParts = [formLabel, metalLabel];
+    if (c.form === "necklace") descParts.push(c.length);
     if (c.engraving) descParts.push(`${t.studio.summary.engraving}: "${c.engraving}"`);
     const description = descParts.join(" · ");
 
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
 
     // Metadata the seller reads to fulfil the order (forward to Taobao maker).
     const metadata: Record<string, string> = {
+      form: c.form || "necklace",
       style: c.style,
       metal: c.metal,
       chain: c.chain,
@@ -91,6 +92,8 @@ export async function POST(req: Request) {
       shipping_address_collection: {
         allowed_countries: ["US", "CA", "GB", "AU", "JP", "SG", "DE", "FR", "NL"],
       },
+      // Japan Post (and most carriers) require a phone number for delivery.
+      phone_number_collection: { enabled: true },
       metadata,
       success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/studio?canceled=1`,

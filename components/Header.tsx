@@ -9,11 +9,13 @@ export default function Header() {
   const { t } = useI18n();
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-5">
-        <Link href="/" className="flex min-w-0 items-center gap-2">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-1.5 px-3 sm:gap-3 sm:px-5">
+        <Link href="/" className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/wagamori-logo.png" alt="Wagamori" className="h-7 w-7 shrink-0 object-contain sm:h-8 sm:w-8" />
-          <span className="font-display text-base tracking-[0.1em] whitespace-nowrap sm:text-xl sm:tracking-[0.16em]">
+          {/* Wordmark hidden only on the narrowest phones (≤360px) so it never
+              overlaps the right-side controls; the logo carries the brand there. */}
+          <span className="hidden font-display text-sm tracking-[0.12em] whitespace-nowrap min-[376px]:inline sm:text-xl sm:tracking-[0.16em]">
             WAGAMORI
           </span>
         </Link>
@@ -23,10 +25,11 @@ export default function Header() {
           <Link href="/#gallery" className="transition-colors hover:text-foreground">{t.nav.gallery}</Link>
           <Link href="/#reviews" className="transition-colors hover:text-foreground">{t.nav.reviews}</Link>
           <Link href="/showcase" className="transition-colors hover:text-foreground">{t.nav.showcase}</Link>
+          <Link href="/blog" className="transition-colors hover:text-foreground">{t.nav.blog}</Link>
           <Link href="/#faq" className="transition-colors hover:text-foreground">{t.nav.faq}</Link>
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           <LangToggle />
           <Show when="signed-out">
             <SignInButton mode="modal">
@@ -72,7 +75,7 @@ export default function Header() {
           </Show>
           <Link
             href="/studio"
-            className="btn-primary cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium sm:px-5 sm:py-2.5 sm:text-sm"
+            className="btn-primary cursor-pointer whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium sm:px-5 sm:py-2.5 sm:text-sm"
           >
             {t.nav.tryFree}
           </Link>

@@ -26,6 +26,8 @@ export default function Footer() {
 
         <FooterCol title={t.footer.help}>
           <FooterLink href="/track">{t.nav.track}</FooterLink>
+          <FooterLink href="/blog">{t.nav.blog}</FooterLink>
+          <FooterLink href="/guide/kids-art">{t.footer.guide}</FooterLink>
           <FooterLink href="/#faq">{t.footer.faqShipping}</FooterLink>
           <FooterLink href={`mailto:${SITE.email}`}>{t.footer.contact}</FooterLink>
           <FooterLink href="/#reviews">{t.nav.reviews}</FooterLink>
@@ -33,7 +35,7 @@ export default function Footer() {
 
         <FooterCol title={t.footer.follow}>
           <FooterLink href={SITE.instagram}>Instagram</FooterLink>
-          <FooterLink href={SITE.tiktok}>TikTok</FooterLink>
+          {SITE.tiktok && <FooterLink href={SITE.tiktok}>TikTok</FooterLink>}
         </FooterCol>
       </div>
 

@@ -5,10 +5,9 @@ export const metadata = { title: "プライバシーポリシー | Wagamori" };
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="プライバシーポリシー" updated="制定日：2026年6月（テンプレート・要確認）">
+    <LegalShell title="プライバシーポリシー" updated="制定日：2026年6月">
       <p>
-        {SITE.name}（以下「当方」）は、お客様の個人情報を適切に取り扱うことが社会的責務であると考え、本プライバシーポリシーを定めます。<strong>【 】</strong>
-        の項目はご自身の情報・運用に合わせて調整してください。
+        {SITE.name}（運営：ラ ウンジュ。以下「当方」）は、お客様の個人情報を適切に取り扱うことが社会的責務であると考え、本プライバシーポリシーを定めます。
       </p>
 
       <Section heading="1. 取得する情報">
@@ -67,7 +66,8 @@ export default function PrivacyPage() {
 
       <Section heading="8. お問い合わせ窓口">
         <p>
-          {SITE.name}　【氏名】<br />
+          {SITE.name}（運営：ラ ウンジュ）<br />
+          〒154-0023 東京都世田谷区若林5-19-7 ハウス柏木301<br />
           メール：{SITE.email}
         </p>
       </Section>
@@ -76,9 +76,6 @@ export default function PrivacyPage() {
         <p>本ポリシーの内容は、法令の変更やサービス内容に応じて改定することがあります。改定後の内容は本ページに掲載した時点で効力を生じます。</p>
       </Section>
 
-      <p className="text-xs text-muted">
-        ※ 本テンプレートは一般的な記載例であり、法的助言ではありません。事業内容に合わせて専門家のご確認をおすすめします。
-      </p>
     </LegalShell>
   );
 }

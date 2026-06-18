@@ -32,8 +32,10 @@ export async function POST(req: Request) {
   const locale = isLocale(localeRaw) ? localeRaw : defaultLocale;
   const t = getDict(locale);
 
+  const form = c.form || "necklace";
+  const formLabel = t.product.forms?.[form as keyof typeof t.product.forms]?.label ?? form;
   const metalLabel = t.product.metals[c.metal as keyof typeof t.product.metals]?.label ?? c.metal ?? "";
-  const descParts = [t.studio.summary.itemValue, metalLabel];
+  const descParts = [formLabel, metalLabel];
   if (c.engraving) descParts.push(`${t.studio.summary.engraving}: "${c.engraving}"`);
   const description = descParts.filter(Boolean).join(" · ");
   const amount = order.amountJpy ?? 0;
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
   }
 
   const metadata: Record<string, string> = {
+    form,
     style: c.style || "enamel",
     metal: c.metal || "gold",
     chain: c.chain || "cable",
@@ -80,6 +83,7 @@ export async function POST(req: Request) {
     shipping_address_collection: {
       allowed_countries: ["US", "CA", "GB", "AU", "JP", "SG", "DE", "FR", "NL"],
     },
+    phone_number_collection: { enabled: true },
     metadata,
     success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/my-orders?canceled=1`,

@@ -99,10 +99,13 @@ async function OrderStatus({
   const previewUrl = sm.artwork && sm.artwork.startsWith("http") ? sm.artwork : undefined;
   const originalUrl = sm.original && sm.original.startsWith("http") ? sm.original : undefined;
 
+  const formLabel = sm.form
+    ? t.product.forms?.[sm.form as keyof typeof t.product.forms]?.label ?? sm.form
+    : t.studio.summary.itemValue;
   const summary = [
-    [t.studio.summary.item, t.studio.summary.itemValue],
+    [t.studio.summary.item, formLabel],
     [t.studio.summary.metal, sm.metal ? t.product.metals[sm.metal as keyof typeof t.product.metals]?.label ?? sm.metal : null],
-    [t.studio.summary.chain, sm.length || null],
+    [t.studio.summary.chain, sm.form === "necklace" || !sm.form ? sm.length || null : null],
     [t.studio.summary.engraving, sm.engraving ? `“${sm.engraving}”` : null],
   ].filter((r) => r[1]) as [string, string][];
 

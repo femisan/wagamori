@@ -1,6 +1,15 @@
 import "server-only";
 import { put } from "@vercel/blob";
 
+/** Persist raw bytes to Vercel Blob and return the public URL (or null). */
+export async function putBytes(bytes: Buffer, name: string, contentType: string): Promise<string | null> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  const rand = Math.random().toString(36).slice(2, 8);
+  const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const blob = await put(`blog/${Date.now()}-${rand}-${safe}`, bytes, { access: "public", contentType });
+  return blob.url;
+}
+
 /** Persist a data URL to Vercel Blob and return its public URL (or null). */
 export async function putDataUrl(dataUrl: string, kind = "img"): Promise<string | null> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;

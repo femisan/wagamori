@@ -12,8 +12,27 @@ const GALLERY_SRC = ["/gallery/1.jpg", "/gallery/2.jpg", "/gallery/3.jpg", "/gal
 
 export default function Home() {
   const { t } = useI18n();
+  // Structured data for AI/answer engines (FAQ + step-by-step). Built from the
+  // visible FAQ + "how it works" so it matches on-page content.
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: t.faq.items.map((i) => ({
+      "@type": "Question",
+      name: i.q,
+      acceptedAnswer: { "@type": "Answer", text: i.a },
+    })),
+  };
+  const howLd = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: t.how.title,
+    step: t.how.steps.map((s, i) => ({ "@type": "HowToStep", position: i + 1, name: s.t, text: s.d })),
+  };
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howLd) }} />
       <Header />
       <Hero />
 

@@ -48,6 +48,9 @@ export default async function MyOrdersPage() {
           <div className="mt-8 space-y-4">
             {orders.map((o) => {
               const spec = parseSpec(o.spec);
+              const formLabel = spec.form
+                ? t.product.forms?.[spec.form as keyof typeof t.product.forms]?.label ?? spec.form
+                : "";
               const metalLabel = spec.metal
                 ? t.product.metals[spec.metal as keyof typeof t.product.metals]?.label ?? spec.metal
                 : "";
@@ -65,7 +68,7 @@ export default async function MyOrdersPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
-                          {metalLabel}
+                          {[formLabel, metalLabel].filter(Boolean).join(" ・ ")}
                           {spec.engraving ? ` ・ "${spec.engraving}"` : ""}
                         </p>
                         <p className="mt-0.5 text-xs text-muted">
@@ -99,7 +102,7 @@ export default async function MyOrdersPage() {
   );
 }
 
-function parseSpec(spec: string | null): { metal?: string; engraving?: string } {
+function parseSpec(spec: string | null): { form?: string; metal?: string; engraving?: string } {
   if (!spec) return {};
   try {
     return JSON.parse(spec);

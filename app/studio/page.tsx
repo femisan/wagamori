@@ -5,13 +5,16 @@ import { Show, SignInButton } from "@clerk/nextjs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import NecklacePreviewCard from "@/components/NecklacePreviewCard";
+import ShareCard from "@/components/ShareCard";
 import { useI18n } from "@/components/LangProvider";
 import type { Dict } from "@/lib/i18n";
 import {
   DEFAULT_CUSTOMIZATION,
   METALS,
+  FORMS,
   type Customization,
   type MetalId,
+  type FormId,
   type StyleId,
   formatPrice,
   priceFor,
@@ -39,6 +42,7 @@ export default function StudioPage() {
   const [editing, setEditing] = useState(false);
   const [editErr, setEditErr] = useState<string | null>(null);
   const [designId, setDesignId] = useState<string | null>(null);
+  const [showShare, setShowShare] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const price = useMemo(() => priceFor(c), [c]);
@@ -272,6 +276,12 @@ export default function StudioPage() {
     swatch: m.swatch,
     delta: m.priceDelta,
   }));
+  const formOptions = FORMS.map((f) => ({
+    id: f.id,
+    label: t.product.forms[f.id].label,
+    sub: t.product.forms[f.id].desc,
+    delta: f.priceDelta,
+  }));
 
   return (
     <>
@@ -293,6 +303,7 @@ export default function StudioPage() {
                   src={preview ?? original}
                   metal={c.metal}
                   style={c.style}
+                  form={c.form}
                   engraving={c.engraving}
                   loading={generating}
                 />
@@ -385,6 +396,22 @@ export default function StudioPage() {
                   </Show>
                 </div>
               )}
+
+              {/* Shareable image (with QR back to the site) */}
+              {preview && (
+                <div className="mt-4">
+                  {!showShare ? (
+                    <button
+                      onClick={() => setShowShare(true)}
+                      className="btn-ghost w-full cursor-pointer rounded-full px-5 py-3 text-sm font-medium"
+                    >
+                      {t.share.makeButton}
+                    </button>
+                  ) : (
+                    <ShareCard preview={preview} original={original ?? originalSmall ?? undefined} engraving={c.engraving} withQr />
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -451,6 +478,13 @@ export default function StudioPage() {
                 <h2 className="font-display text-2xl">{t.studio.customize.title}</h2>
 
                 <Choice
+                  label={t.studio.customize.form}
+                  options={formOptions}
+                  value={c.form}
+                  onChange={(id) => setC({ ...c, form: id as FormId })}
+                />
+
+                <Choice
                   label={t.studio.customize.metal}
                   options={metalOptions}
                   value={c.metal}
@@ -472,7 +506,9 @@ export default function StudioPage() {
                   </p>
                 </div>
 
-                <p className="text-xs text-muted">{t.studio.customize.fixedSpec}</p>
+                <p className="text-xs text-muted">
+                  {c.form === "necklace" ? t.studio.customize.fixedSpec : t.studio.customize.handNote}
+                </p>
 
                 <div className="flex gap-3">
                   <button onClick={() => setStep(2)} className="btn-ghost cursor-pointer rounded-full px-5 py-3 text-sm">
@@ -687,9 +723,9 @@ function Choice({
 
 function OrderSummary({ c, price, t }: { c: Customization; price: number; t: Dict }) {
   const rows = [
-    [t.studio.summary.item, t.studio.summary.itemValue],
+    [t.studio.summary.item, t.product.forms?.[c.form]?.label ?? t.studio.summary.itemValue],
     [t.studio.summary.metal, t.product.metals[c.metal].label],
-    [t.studio.summary.chain, c.length],
+    (c.form ?? "necklace") === "necklace" ? [t.studio.summary.chain, c.length] : null,
     c.engraving ? [t.studio.summary.engraving, `“${c.engraving}”`] : null,
   ].filter(Boolean) as [string, string][];
   return (

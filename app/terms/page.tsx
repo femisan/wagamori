@@ -5,9 +5,9 @@ export const metadata = { title: "利用規約 | Wagamori" };
 
 export default function TermsPage() {
   return (
-    <LegalShell title="利用規約" updated="制定日：2026年6月（テンプレート・要確認）">
+    <LegalShell title="利用規約" updated="制定日：2026年6月">
       <p>
-        本利用規約（以下「本規約」）は、{SITE.name}（以下「当方」）が提供するサービス（以下「本サービス」）の利用条件を定めるものです。お客様（以下「ユーザー」）は、本規約に同意のうえ本サービスをご利用ください。
+        本利用規約（以下「本規約」）は、{SITE.name}（運営：ラ ウンジュ。以下「当方」）が提供するサービス（以下「本サービス」）の利用条件を定めるものです。お客様（以下「ユーザー」）は、本規約に同意のうえ本サービスをご利用ください。
       </p>
 
       <Section heading="第1条（適用）">
@@ -67,20 +67,17 @@ export default function TermsPage() {
 
       <Section heading="第10条（準拠法・管轄）">
         <p>
-          本規約は日本法に準拠します。本サービスに関して紛争が生じた場合、【当方所在地を管轄する地方裁判所】を第一審の専属的合意管轄裁判所とします。
+          本規約は日本法に準拠します。本サービスに関して紛争が生じた場合、東京地方裁判所を第一審の専属的合意管轄裁判所とします。
         </p>
       </Section>
 
       <Section heading="お問い合わせ">
         <p>
-          {SITE.name}　【氏名】<br />
+          {SITE.name}（運営：ラ ウンジュ）<br />
+          〒154-0023 東京都世田谷区若林5-19-7 ハウス柏木301<br />
           メール：{SITE.email}
         </p>
       </Section>
-
-      <p className="text-xs text-muted">
-        ※ 本テンプレートは一般的な記載例であり、法的助言ではありません。事業内容に合わせて専門家のご確認をおすすめします。
-      </p>
     </LegalShell>
   );
 }

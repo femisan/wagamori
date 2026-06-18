@@ -5,6 +5,9 @@
 export type MetalId = "gold" | "silver" | "rosegold";
 export type ChainId = "cable" | "rope" | "satellite";
 export type StyleId = "enamel" | "engraved" | "photo";
+// The piece's form factor. A necklace can get grabbed by a baby, so we offer
+// a bracelet and a keychain too — same charm, different attachment.
+export type FormId = "necklace" | "bracelet" | "keychain";
 
 export interface Option<T extends string> {
   id: T;
@@ -53,7 +56,16 @@ export const CHAINS: Option<ChainId>[] = [
 
 export const CHAIN_LENGTHS = ["16in (40cm)", "18in (45cm)", "20in (50cm)"] as const;
 
+// Form factor — same handcrafted charm, different attachment. Same price for
+// now (set a priceDelta here later if a form costs more/less to make).
+export const FORMS: Option<FormId>[] = [
+  { id: "necklace", label: "Necklace", desc: "Worn close to the heart", priceDelta: 0 },
+  { id: "bracelet", label: "Bracelet", desc: "On the wrist — out of little hands' reach", priceDelta: 0 },
+  { id: "keychain", label: "Keychain / Bag charm", desc: "Clip to a bag, pouch or keys", priceDelta: 0 },
+];
+
 export interface Customization {
+  form: FormId;
   style: StyleId;
   metal: MetalId;
   chain: ChainId;
@@ -63,6 +75,7 @@ export interface Customization {
 }
 
 export const DEFAULT_CUSTOMIZATION: Customization = {
+  form: "necklace",
   style: "enamel",
   metal: "gold",
   chain: "cable",
@@ -71,11 +84,12 @@ export const DEFAULT_CUSTOMIZATION: Customization = {
   notes: "",
 };
 
-export function priceFor(c: Pick<Customization, "style" | "metal" | "chain">): number {
+export function priceFor(c: Pick<Customization, "style" | "metal" | "chain" | "form">): number {
   const s = STYLES.find((x) => x.id === c.style)?.priceDelta ?? 0;
   const m = METALS.find((x) => x.id === c.metal)?.priceDelta ?? 0;
   const ch = CHAINS.find((x) => x.id === c.chain)?.priceDelta ?? 0;
-  return BASE_PRICE + s + m + ch;
+  const f = FORMS.find((x) => x.id === c.form)?.priceDelta ?? 0;
+  return BASE_PRICE + s + m + ch + f;
 }
 
 export function formatPrice(amount: number): string {

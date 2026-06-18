@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { SITE } from "./site";
 
 /** Best-effort transactional email via Resend. No-ops if RESEND_API_KEY is unset. */
 export async function sendMail(to: string | undefined | null, subject: string, html: string) {
@@ -7,7 +8,9 @@ export async function sendMail(to: string | undefined | null, subject: string, h
   if (!key || !to) return;
   const from = process.env.EMAIL_FROM || "Wagamori <onboarding@resend.dev>";
   try {
-    await new Resend(key).emails.send({ from, to, subject, html });
+    // Send FROM the verified domain (deliverability); replies go to the inbox
+    // we actually monitor (SITE.email — the Gmail).
+    await new Resend(key).emails.send({ from, to, subject, html, replyTo: SITE.email });
   } catch {
     // swallow — email is never allowed to break the request flow
   }
@@ -32,6 +35,7 @@ export function emailShell(opts: {
     <h1 style="font-size:22px;margin:0 0 8px">${opts.heading}</h1>
     <p style="color:#9b7a80;line-height:1.6;margin:0 0 20px">${opts.body}</p>
     ${btn}
-    ${opts.footer ? `<p style="font-size:12px;color:#c9b8bc;margin:16px 0 0">${opts.footer}</p>` : ""}
+    <p style="font-size:12px;color:#9b7a80;margin:20px 0 0">お問い合わせ / Contact: <a href="mailto:${SITE.email}" style="color:#ca8a04">${SITE.email}</a></p>
+    ${opts.footer ? `<p style="font-size:12px;color:#c9b8bc;margin:8px 0 0">${opts.footer}</p>` : ""}
   </div>`;
 }
