@@ -5,6 +5,7 @@ const METAL_RGB: Record<MetalId, [number, number, number]> = {
   gold: [232, 192, 90],
   silver: [205, 209, 212],
   rosegold: [224, 168, 153],
+  acrylic: [200, 220, 255], // light blue tint for the canvas fallback
 };
 
 /**

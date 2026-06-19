@@ -121,6 +121,35 @@ const ja = {
       { q: "送料・返品について", a: "世界中送料無料です。一点ずつのオーダーメイドのため返品はお受けできませんが、100%満足保証付き。不具合があれば作り直します。" },
     ],
   },
+  pricing: {
+    kicker: "3つの素材から選べます",
+    title: "素材と価格",
+    sub: "デザインのプレビューは無料。素材はカート前にいつでも変更できます。",
+    tiers: [
+      {
+        name: "アクリルプリント",
+        price: "¥2,000〜",
+        badge: "一番人気",
+        desc: "鮮やかなフルカラープリント。かわいいキャラやペットの絵に最適なキーホルダーチャーム。",
+        features: ["フルカラー印刷", "クリアアクリル素材", "軽くて丈夫"],
+      },
+      {
+        name: "金属バッジ",
+        price: "¥3,700〜",
+        badge: "ギフトに人気",
+        desc: "18金またはローズゴールドの金属バッジにビビッドなプリント。しっかりした存在感のチャーム。",
+        features: ["18金 / ローズゴールド", "ビビッドプリント", "アレルギー対応"],
+      },
+      {
+        name: "シルバー925",
+        price: "¥7,500〜",
+        badge: "プレミアム",
+        desc: "スターリングシルバー925のジュエリーペンダント。細線アートで極上の上品さ。特別な贈り物に。",
+        features: ["スターリングシルバー925", "細線彫刻デザイン", "ジュエリー品質"],
+      },
+    ],
+    cta: "スタジオで試す →",
+  },
   finalCta: {
     title: "数秒で、あなたの宝物を",
     sub: "無料プレビュー・登録不要。いちばん悩むのは、どの写真にするかだけ。",
@@ -340,6 +369,7 @@ const ja = {
       gold: { label: "シルバー925・18金コーティング", desc: "シルバー925に18金をコーティング。あたたかく上品な金色。" },
       silver: { label: "シルバー925（素材色）", desc: "コーティングなしのシルバー925そのままの色。明るくモダン。" },
       rosegold: { label: "シルバー925・ローズゴールドコーティング", desc: "シルバー925にローズゴールドをコーティング。やわらかな血色感。" },
+      acrylic: { label: "アクリルプリント", desc: "鮮やかなカラー印刷をアクリル板に。軽くて丈夫なキーホルダー向き。" },
     },
     styles: {
       enamel: { label: "クロワゾネ カラー（砂＋レジン）", desc: "色付きの砂とUVレジンを、金属の仕切りで一色ずつ区切って充填。実物そのままの質感です。" },
@@ -490,6 +520,35 @@ const en = {
       { q: "What photos work best?", a: "Clear, well-lit images with the subject facing the camera. For kids' drawings, a flat photo on a plain background is perfect. We'll clean it up either way." },
       { q: "Shipping & returns?", a: "Free worldwide shipping. Because each piece is personalized we can't accept returns, but we stand behind every order with a 100% happiness guarantee — if something's wrong, we'll remake it." },
     ],
+  },
+  pricing: {
+    kicker: "Three tiers to choose from",
+    title: "Materials & pricing",
+    sub: "Preview any design free. You choose the material before checkout — no commitment.",
+    tiers: [
+      {
+        name: "Acrylic Print",
+        price: "¥2,000~",
+        badge: "Most popular",
+        desc: "Vivid full-colour print on clear acrylic. Perfect for cute characters, pet portraits, and kids' drawings.",
+        features: ["Full-colour print", "Clear acrylic", "Lightweight & durable"],
+      },
+      {
+        name: "Metal Badge",
+        price: "¥3,700~",
+        badge: "Great gift",
+        desc: "Bold graphic printed on an 18k gold or rose-gold metal badge. A statement charm with real presence.",
+        features: ["18k gold / rose gold", "Vivid bold print", "Hypoallergenic"],
+      },
+      {
+        name: "Sterling Silver 925",
+        price: "¥7,500~",
+        badge: "Premium",
+        desc: "Fine-line art etched on a 925 sterling silver jewellery pendant. Refined, minimal, and jewellery-grade.",
+        features: ["925 sterling silver", "Fine-line engraved design", "Jewellery quality"],
+      },
+    ],
+    cta: "Try the studio →",
   },
   finalCta: {
     title: "See yours in seconds",
@@ -710,6 +769,7 @@ const en = {
       gold: { label: "Sterling Silver 925 · 18k Gold Coating", desc: "925 sterling silver coated in 18k gold. Warm, classic." },
       silver: { label: "Sterling Silver 925", desc: "Sterling silver 925, uncoated — bright & modern." },
       rosegold: { label: "Sterling Silver 925 · Rose Gold Coating", desc: "925 sterling silver coated in rose gold. Soft, romantic blush." },
+      acrylic: { label: "Acrylic Print", desc: "Vibrant full-colour print on lightweight, durable clear acrylic. Perfect for keychains." },
     },
     styles: {
       enamel: { label: "Cloisonné Colour (sand + resin)", desc: "Colours filled with coloured sand & UV resin, each one framed by metal dividers — just like the real piece." },

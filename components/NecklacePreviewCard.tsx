@@ -22,6 +22,8 @@ const METAL_STOPS: Record<MetalId, [string, string, string]> = {
   gold: ["#fbeebc", "#e2b53c", "#b88a26"],
   silver: ["#eef1f3", "#aab0b4", "#7c8388"],
   rosegold: ["#f3d3c8", "#d89a89", "#b06f5e"],
+  // Acrylic: clear/translucent look with a light blue-white sheen.
+  acrylic: ["#f0f6ff", "#c8daf5", "#9ab8e0"],
 };
 
 /**

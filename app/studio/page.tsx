@@ -12,6 +12,8 @@ import {
   DEFAULT_CUSTOMIZATION,
   METALS,
   FORMS,
+  TIER_PRICES,
+  materialTier,
   type Customization,
   type MetalId,
   type FormId,
@@ -44,6 +46,18 @@ export default function StudioPage() {
   const [designId, setDesignId] = useState<string | null>(null);
   const [showShare, setShowShare] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
+
+  // Cart — accumulates items before the single merged Stripe checkout.
+  const [cart, setCart] = useState<
+    Array<{
+      id: string;
+      customization: Customization;
+      price: number;
+      preview: string;
+      original: string;
+    }>
+  >([]);
+  const cartTotal = useMemo(() => cart.reduce((s, it) => s + it.price, 0), [cart]);
 
   const price = useMemo(() => priceFor(c), [c]);
 
@@ -220,41 +234,79 @@ export default function StudioPage() {
     [t, generate],
   );
 
+  const persist = useCallback(async (dataUrl: string, kind: string): Promise<string | undefined> => {
+    try {
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataUrl, kind }),
+      });
+      if (!res.ok) return undefined;
+      const j = await res.json();
+      return j.ok ? j.url : undefined;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  // Add the current design to the cart and reset for a new item.
+  const addToCart = useCallback(async () => {
+    if (!preview || !original) return;
+    const newItem = {
+      id: Math.random().toString(36).slice(2),
+      customization: { ...c },
+      price,
+      preview,
+      original,
+    };
+    setCart((prev) => [...prev, newItem]);
+    // Reset studio for next design.
+    setStep(1);
+    setOriginal(null);
+    setOriginalSmall(null);
+    setOriginalFile(null);
+    setPreview(null);
+    setDesignId(null);
+    setGenNote(null);
+    setEditInput("");
+  }, [preview, original, c, price]);
+
+  const removeFromCart = useCallback((id: string) => {
+    setCart((prev) => prev.filter((it) => it.id !== id));
+  }, []);
+
   const checkout = useCallback(async () => {
     setCheckingOut(true);
     setError(null);
-    // Persisting artwork is best-effort — it must NEVER block reaching checkout.
-    const persist = async (dataUrl: string, kind: string): Promise<string | undefined> => {
-      try {
-        const res = await fetch("/api/order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dataUrl, kind }),
-        });
-        if (!res.ok) return undefined;
-        const j = await res.json();
-        return j.ok ? j.url : undefined;
-      } catch {
-        return undefined;
-      }
-    };
+
+    // Build the final cart: current item (if any preview exists) + queued items.
+    const currentItem =
+      preview && original
+        ? [{ id: "current", customization: { ...c }, price, preview, original }]
+        : [];
+    const allItems = [...cart, ...currentItem];
+    if (allItems.length === 0) {
+      setError("カートにアイテムがありません");
+      setCheckingOut(false);
+      return;
+    }
 
     try {
-      // 1) persist artwork + original photo so the order can be fulfilled and
-      //    the customer can later view/share their sample. Downscale first so
-      //    large phone photos don't exceed the request-body limit.
-      let artworkUrl: string | undefined;
-      let originalUrl: string | undefined;
-      if (preview) artworkUrl = await persist(preview, "preview");
-      if (original) {
-        const small = await downscaleDataUrl(original, 1200);
-        originalUrl = await persist(small, "original");
-      }
-      // 2) create checkout session (or demo success)
+      // Persist all artworks concurrently (best-effort — never blocks checkout).
+      const persisted = await Promise.all(
+        allItems.map(async (it) => {
+          const [artworkUrl, originalUrl] = await Promise.all([
+            persist(it.preview, "preview"),
+            downscaleDataUrl(it.original, 1200).then((small) => persist(small, "original")),
+          ]);
+          return { customization: it.customization, priceCents: it.price, artworkUrl, originalUrl };
+        }),
+      );
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customization: c, priceCents: price, artworkUrl, originalUrl, email, locale }),
+        body: JSON.stringify({ items: persisted, email, locale }),
       });
       const json = await res.json();
       if (json.url) {
@@ -267,7 +319,7 @@ export default function StudioPage() {
     } finally {
       setCheckingOut(false);
     }
-  }, [c, price, preview, original, email, locale, t]);
+  }, [c, price, preview, original, cart, email, locale, persist, t]);
 
   const metalOptions = METALS.map((m) => ({
     id: m.id,
@@ -275,6 +327,7 @@ export default function StudioPage() {
     sub: t.product.metals[m.id].desc,
     swatch: m.swatch,
     delta: m.priceDelta,
+    price: TIER_PRICES[materialTier(m.id)],
   }));
   const formOptions = FORMS.map((f) => ({
     id: f.id,
@@ -529,6 +582,35 @@ export default function StudioPage() {
                 <h2 className="font-display text-2xl">{t.studio.checkout.title}</h2>
                 <OrderSummary c={c} price={price} t={t} />
 
+                {/* Cart — queued items from previous designs */}
+                {cart.length > 0 && (
+                  <div className="card divide-y divide-line">
+                    <p className="px-4 py-2 text-xs font-medium text-muted">
+                      カート ({cart.length + 1}件合計 {formatPrice(cartTotal + price)})
+                    </p>
+                    {cart.map((it, idx) => (
+                      <div key={it.id} className="flex items-center gap-3 px-4 py-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={it.preview}
+                          alt={`item ${idx + 1}`}
+                          className="h-10 w-10 rounded-lg object-cover ring-1 ring-line"
+                        />
+                        <div className="min-w-0 flex-1 text-sm">
+                          <p className="font-medium">{it.customization.form} · {it.customization.metal}</p>
+                          <p className="text-xs text-muted">{formatPrice(it.price)}</p>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(it.id)}
+                          className="shrink-0 text-xs text-muted hover:text-blush-deep"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div>
                   <Label>{t.studio.checkout.email}</Label>
                   <input
@@ -552,6 +634,15 @@ export default function StudioPage() {
                   <p className="mt-1 text-xs text-muted">{t.studio.checkout.notesHint}</p>
                 </div>
 
+                {/* Add to cart for multi-item ordering */}
+                <button
+                  onClick={addToCart}
+                  disabled={checkingOut || !preview}
+                  className="btn-ghost w-full cursor-pointer rounded-full px-6 py-3 text-sm font-medium disabled:opacity-50"
+                >
+                  + カートに追加してもう1件デザインする
+                </button>
+
                 <button
                   onClick={checkout}
                   disabled={checkingOut}
@@ -559,7 +650,9 @@ export default function StudioPage() {
                 >
                   {checkingOut
                     ? t.studio.checkout.paying
-                    : `${t.studio.checkout.payPrefix} ${formatPrice(price)} ${t.studio.checkout.paySuffix}`}
+                    : cart.length > 0
+                      ? `まとめて注文 ${formatPrice(cartTotal + price)} (${cart.length + 1}件)`
+                      : `${t.studio.checkout.payPrefix} ${formatPrice(price)} ${t.studio.checkout.paySuffix}`}
                 </button>
                 <p className="text-center text-xs text-muted">{t.studio.checkout.secureNote}</p>
                 <button onClick={() => setStep(3)} className="mx-auto block cursor-pointer text-sm text-muted hover:text-foreground">
@@ -684,7 +777,7 @@ function Choice({
   disabled = false,
 }: {
   label: string;
-  options: { id: string; label: string; sub?: string; swatch?: string; delta: number }[];
+  options: { id: string; label: string; sub?: string; swatch?: string; delta: number; price?: number }[];
   value: string;
   onChange: (id: string) => void;
   disabled?: boolean;
@@ -709,11 +802,13 @@ function Choice({
               <span className="text-sm font-medium">{o.label}</span>
             </div>
             {o.sub && <p className="mt-1 text-xs text-muted">{o.sub}</p>}
-            {o.delta !== 0 && (
+            {o.price != null ? (
+              <p className="mt-1.5 text-sm font-semibold text-foreground">{formatPrice(o.price)}</p>
+            ) : o.delta !== 0 ? (
               <p className="mt-1 text-xs text-muted">
                 {o.delta > 0 ? `+${formatPrice(o.delta)}` : `−${formatPrice(-o.delta)}`}
               </p>
-            )}
+            ) : null}
           </button>
         ))}
       </div>

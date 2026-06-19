@@ -82,6 +82,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Three-tier pricing comparison */}
+      <section id="pricing" className="mx-auto max-w-6xl px-5 py-20">
+        <Header2 kicker={t.pricing.kicker} title={t.pricing.title} />
+        <p className="mt-3 text-center text-muted">{t.pricing.sub}</p>
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
+          {t.pricing.tiers.map((tier, i) => (
+            <div
+              key={tier.name}
+              className={`card relative flex flex-col p-7 ${i === 2 ? "ring-1 ring-rose/40" : ""}`}
+            >
+              {tier.badge && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-rose px-3 py-0.5 text-xs font-medium text-white">
+                  {tier.badge}
+                </span>
+              )}
+              <h3 className="font-display text-2xl">{tier.name}</h3>
+              <p className="mt-1 text-3xl font-bold text-foreground">{tier.price}</p>
+              <p className="mt-3 flex-1 text-sm text-muted">{tier.desc}</p>
+              <ul className="mt-5 space-y-1.5">
+                {tier.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rose)" strokeWidth="2.5">
+                      <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="mt-10 text-center">
+          <Link href="/studio" className="btn-primary cursor-pointer rounded-full px-7 py-3.5 text-base font-medium">
+            {t.pricing.cta}
+          </Link>
+        </div>
+      </section>
+
       {/* Buyer-show teaser (hidden until customers post) */}
       <ShowcaseTeaser />
 

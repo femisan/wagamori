@@ -45,13 +45,7 @@ export const runtime = "nodejs";
 // gpt-image-1 can occasionally take >60s; allow headroom to avoid 504s.
 export const maxDuration = 120;
 
-// Metal colour used for the cloisonné divider walls. Defaults to gold.
-type MetalTint = "gold" | "silver" | "rosegold";
-const METAL_WORD: Record<MetalTint, string> = {
-  gold: "shiny gold",
-  silver: "bright polished silver",
-  rosegold: "soft rose-gold",
-};
+type MetalTint = "gold" | "silver" | "rosegold" | "acrylic";
 
 // How many of the drawn subjects to keep.
 type SubjectMode = "solo" | "all";
@@ -110,38 +104,72 @@ function isolation(mode: SubjectMode): string {
   );
 }
 
-// Keep the artwork's real colours — gpt-image-1 otherwise drifts warm/yellow.
-const COLOR_FIDELITY =
+// Colour accuracy reminder — gpt-image-1 otherwise drifts warm/yellow.
+const COLOR_ACCURACY =
   "COLOUR ACCURACY (very important): faithfully reproduce the EXACT colours of the original artwork — keep every hue " +
   "true to what was actually drawn (blue stays blue, red stays red, brown hair stays brown, plain/cream paper areas " +
-  "become clean neutral white). Do NOT add any yellow, golden, warm or sepia tint to the colour fills and do not shift " +
-  "or recolour the palette. ONLY the thin divider lines are metallic gold; every colour inside the cells must match the " +
-  "original drawing's colours. ";
+  "become clean neutral white). Do NOT add any yellow, golden, warm or sepia tint to the colour fills. ";
 
-function enamelPrompt(metal: MetalTint, mode: SubjectMode, connection: ConnectMode): string {
-  const wall = METAL_WORD[metal] ?? METAL_WORD.gold;
-  const subj = mode === "all" ? "the whole drawing (all the figures and elements together)" : "that single subject";
+// Gold / rose-gold tier: flat print on a metal badge charm (not cloisonné).
+function metalBadgePrompt(metal: "gold" | "rosegold", mode: SubjectMode, connection: ConnectMode): string {
+  const metalColor = metal === "rosegold" ? "rose-gold" : "shiny gold";
+  const subj = mode === "all" ? "the whole drawing (all figures and elements together)" : "that single main subject";
   return (
     isolation(mode) +
-    `Turn ${subj} into a real handcrafted cloisonné-style enamel jewelry pendant, in TWO steps. ` +
-    `STEP 1 — STYLISE: if the input is a realistic photo, do NOT keep it photographic — reinterpret it as a bold ` +
-    `flat-colour-block cartoon/comic illustration (sticker / anime cel / pop-art): large clean areas of solid flat ` +
-    `colour, simple outlines, minimal detail, and NO photographic gradients, shadows or texture. If it is already a ` +
-    `drawing, keep its charm but simplify it into clean flat colour areas. ` +
-    (mode === "all" ? `Arrange ALL the figures/elements together as one balanced composition. ` : ``) +
-    `STEP 2 — CLOISONNÉ: every area of colour must be fully enclosed by thin raised ${wall} metal divider lines ` +
-    `(cloisonné wires). No two colours ever touch directly — there is ALWAYS a thin ${wall} metal wall between one ` +
-    `colour and the next, and around the outside of every shape. Fill each metal-walled cell with fine coloured sand ` +
-    `set in clear glossy UV resin: a subtle granular sandy texture with a wet, glassy resin sheen. Flat colour blocks ` +
-    `divided by metal, centered on a pure clean WHITE background with generous margin. No gradients inside a cell, no ` +
-    `text. ` +
+    `Turn ${subj} into a bold flat-print design for a ${metalColor} metal badge keychain charm. ` +
+    `Style: vibrant anime / bold cartoon illustration — large clean areas of solid flat colour, strong clean outlines, ` +
+    `vivid saturated colours. No gradients, no metallic textures inside the design itself. ` +
+    `IMPORTANT: do NOT add any cloisonné wires, enamel divider lines, or enamel cell walls — ` +
+    `this is a FLAT PRINT on metal, not cloisonné enamel. ` +
+    (mode === "all" ? `Arrange ALL figures and elements as one balanced composition. ` : ``) +
+    `The design is printed on a circular ${metalColor} metal badge with a subtle metallic sheen around the design. ` +
+    `Center the artwork on a PURE WHITE background with generous margin on all sides. ` +
     assembly(mode, connection) +
-    COLOR_FIDELITY +
-    `The final result must look like an actual metal-and-resin pendant, not a photo and not a flat drawing.`
+    COLOR_ACCURACY +
+    `The result must look like a vivid, bold graphic PRINTED on a shiny ${metalColor} metal badge — ` +
+    `not cloisonné enamel, not a photo, not a sketch.`
+  );
+}
+
+// Silver tier: 925 sterling silver jewelry pendant (fine-line, minimalist).
+function silverJewelryPrompt(mode: SubjectMode): string {
+  const subj = mode === "all" ? "the whole drawing (all figures and elements)" : "that single main subject";
+  return (
+    isolation(mode) +
+    `Turn ${subj} into an elegant fine-line design for a 925 sterling silver jewelry pendant. ` +
+    `Style: minimalist and refined — simplify the subject into clean, delicate thin line art. ` +
+    `Thin precise lines only; no colour fills, no gradients, no bold outlines, no enamel. ` +
+    `The design should evoke fine line engraving or silver wire-work etched into a polished silver surface. ` +
+    (mode === "all" ? `Arrange all elements into one elegant unified composition. ` : ``) +
+    `Present the artwork as subtle, precise silver-toned line art centered on a pure white background ` +
+    `with generous margin — evoking a high-end 925 silver pendant charm: refined, minimal, jewellery-quality. ` +
+    `Do NOT add any bails, rings, chains or clasps — output only the charm design. No text, no colour fills. ` +
+    `The result must feel like an elegant minimalist piece of fine silver jewellery — ` +
+    `not a sticker, not bold cartoon art, not cloisonné.`
+  );
+}
+
+// Acrylic keychains are PRINTED, not cast. The artwork needs to look great as a
+// vibrant flat print — no metal-wall illusion, no 3D depth, just clean bold graphics.
+function acrylicPrompt(mode: SubjectMode): string {
+  const subj = mode === "all" ? "the whole drawing (all figures and elements)" : "that single main subject";
+  return (
+    isolation(mode) +
+    `Turn ${subj} into a cute, vibrant sticker-style illustration perfect for printing onto a small acrylic keychain charm. ` +
+    `Style: bold anime / kawaii sticker art — clean thick outlines (important for die-cut production), ` +
+    `large flat areas of solid bright colour, no gradients, no metallic textures, no 3D effects. ` +
+    `Colours should be vivid and saturated. The design should be centered on a PURE WHITE background with generous ` +
+    `margin on all sides (the white background will be precision-cut away during production, so the thick outline ` +
+    `clearly defines the charm shape). ` +
+    `Do NOT add any metal bails, rings, chains or clasps — output ONLY the charm artwork. No text. ` +
+    COLOR_ACCURACY +
+    `The final result must look like a fun, cute printed sticker design — not a photo, not metalwork, not a sketch.`
   );
 }
 
 function promptFor(style: StyleId, metal: MetalTint, mode: SubjectMode, connection: ConnectMode): string {
+  // Acrylic is material-driven regardless of style — always produces a flat print.
+  if (metal === "acrylic") return acrylicPrompt(mode);
   if (style === "engraved") {
     const subj = mode === "all" ? "the whole drawing" : "that subject";
     return (
@@ -159,7 +187,11 @@ function promptFor(style: StyleId, metal: MetalTint, mode: SubjectMode, connecti
       `Keep it photographic and true to the original colours. No text.`
     );
   }
-  return enamelPrompt(metal, mode, connection);
+  // Default "enamel" style — route by material tier.
+  // Silver is 925 sterling silver jewellery: fine-line minimalist engraving look.
+  if (metal === "silver") return silverJewelryPrompt(mode);
+  // Gold and rose-gold are printed metal badge charms (not cloisonné).
+  return metalBadgePrompt(metal as "gold" | "rosegold", mode, connection);
 }
 
 export async function POST(req: NextRequest) {

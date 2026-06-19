@@ -2,7 +2,7 @@
 // Prices are in the smallest Stripe currency unit. JPY is zero-decimal, so the
 // unit IS the yen (¥7,500 → 7500). No /100 anywhere.
 
-export type MetalId = "gold" | "silver" | "rosegold";
+export type MetalId = "gold" | "silver" | "rosegold" | "acrylic";
 export type ChainId = "cable" | "rope" | "satellite";
 export type StyleId = "enamel" | "engraved" | "photo";
 // The piece's form factor. A necklace can get grabbed by a baby, so we offer
@@ -17,14 +17,33 @@ export interface Option<T extends string> {
   swatch?: string; // css color for UI
 }
 
-export const BASE_PRICE = 7500; // ¥7,500 base
+// Three-tier pricing (JPY, zero-decimal for Stripe).
+// Tier is determined by material choice:
+//   acrylic  → ¥2,000  (printed acrylic keychain)
+//   gold / rosegold → ¥3,700  (gold-plated metal keychain)
+//   silver   → ¥7,500  (sterling silver jewellery)
+export const TIER_PRICES: Record<"acrylic" | "metal" | "silver", number> = {
+  acrylic: 2000,
+  metal: 3700,
+  silver: 7500,
+};
 
-// Three finishes only — gold-plated, sterling silver, rose-gold-plated.
-// All the same price (the colour is the single product choice).
+export type MaterialTier = keyof typeof TIER_PRICES;
+
+export function materialTier(metal: MetalId): MaterialTier {
+  if (metal === "acrylic") return "acrylic";
+  if (metal === "silver") return "silver";
+  return "metal";
+}
+
+/** @deprecated — use TIER_PRICES[materialTier(metal)] directly for clarity */
+export const BASE_PRICE = 7500;
+
 export const METALS: Option<MetalId>[] = [
   { id: "gold", label: "18k Gold Plated", desc: "Warm, classic, never fades", priceDelta: 0, swatch: "#e2c25a" },
   { id: "silver", label: "Sterling Silver", desc: "Bright & modern", priceDelta: 0, swatch: "#c9ccce" },
   { id: "rosegold", label: "Rose Gold", desc: "Soft, romantic blush", priceDelta: 0, swatch: "#e0a899" },
+  { id: "acrylic", label: "Acrylic Print", desc: "Vibrant full-colour print on clear acrylic", priceDelta: 0, swatch: "#e8f0fe" },
 ];
 
 export const STYLES: Option<StyleId>[] = [
@@ -85,11 +104,13 @@ export const DEFAULT_CUSTOMIZATION: Customization = {
 };
 
 export function priceFor(c: Pick<Customization, "style" | "metal" | "chain" | "form">): number {
+  const base = TIER_PRICES[materialTier(c.metal)];
+  // Acrylic is flat-price — style/chain add-ons don't apply to a printed charm.
+  if (c.metal === "acrylic") return base;
   const s = STYLES.find((x) => x.id === c.style)?.priceDelta ?? 0;
-  const m = METALS.find((x) => x.id === c.metal)?.priceDelta ?? 0;
   const ch = CHAINS.find((x) => x.id === c.chain)?.priceDelta ?? 0;
   const f = FORMS.find((x) => x.id === c.form)?.priceDelta ?? 0;
-  return BASE_PRICE + s + m + ch + f;
+  return base + s + ch + f;
 }
 
 export function formatPrice(amount: number): string {
