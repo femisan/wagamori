@@ -1,6 +1,45 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
 import OpenAI, { toFile } from "openai";
 import type { StyleId } from "@/lib/products";
+
+// Per-IP rate limit: N requests per hour before gpt-image-1 is called.
+const RATE_LIMIT = 3;
+
+// Module-level SQL handle (one per cold start — stateless HTTP driver, safe).
+const _sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
+async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfter: number }> {
+  if (!_sql) return { allowed: true, retryAfter: 0 };
+  try {
+    // Bootstrap the table on first use; DDL is a fast no-op when it exists.
+    await _sql`
+      CREATE TABLE IF NOT EXISTS ai_rate_limits (
+        ip       TEXT PRIMARY KEY,
+        count    INT NOT NULL DEFAULT 1,
+        reset_at TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '1 hour')
+      )
+    `;
+    const rows = await _sql`
+      INSERT INTO ai_rate_limits (ip, count, reset_at)
+      VALUES (${ip}, 1, now() + INTERVAL '1 hour')
+      ON CONFLICT (ip) DO UPDATE SET
+        count    = CASE WHEN ai_rate_limits.reset_at <= now()
+                        THEN 1 ELSE ai_rate_limits.count + 1 END,
+        reset_at = CASE WHEN ai_rate_limits.reset_at <= now()
+                        THEN now() + INTERVAL '1 hour' ELSE ai_rate_limits.reset_at END
+      RETURNING count,
+                GREATEST(0, EXTRACT(EPOCH FROM (reset_at - now()))::int) AS retry_after
+    `;
+    const row = (rows as Array<{ count: number; retry_after: number }>)[0];
+    return {
+      allowed: (row?.count ?? 1) <= RATE_LIMIT,
+      retryAfter: row?.retry_after ?? 3600,
+    };
+  } catch {
+    return { allowed: true, retryAfter: 0 }; // fail open on DB errors
+  }
+}
 
 export const runtime = "nodejs";
 // gpt-image-1 can occasionally take >60s; allow headroom to avoid 504s.
@@ -123,7 +162,23 @@ function promptFor(style: StyleId, metal: MetalTint, mode: SubjectMode, connecti
   return enamelPrompt(metal, mode, connection);
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Rate-limit before any expensive work; use x-forwarded-for set by Vercel.
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+  const { allowed, retryAfter } = await checkRateLimit(ip);
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `You've reached the limit of ${RATE_LIMIT} free previews per hour. Please try again later.`,
+      },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+    );
+  }
+
   try {
     const form = await req.formData();
     const file = form.get("image");
