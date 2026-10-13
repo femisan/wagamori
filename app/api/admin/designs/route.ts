@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       designId: b.designId,
       round: await nextRound(b.designId),
       source: "cs",
-      instruction: (b.instruction || "CS手動稿").slice(0, 300),
+      instruction: (b.instruction || "CS作成デザイン").slice(0, 300),
       imageUrl: url,
     });
     return NextResponse.json({ ok: true, imageUrl: url });

@@ -4,7 +4,7 @@ export default function AdminHome() {
   const cards = [
     { href: "/admin/orders", title: "注文管理", desc: "注文ごとの全アイテム（制作する版＋元写真）・住所・ステータスと追跡番号の更新" },
     { href: "/admin/designs", title: "デザイン・見込み客", desc: "全プレビューの元写真と試作履歴・未注文のお客様への割引クーポンメール" },
-    { href: "/admin/showcase", title: "実物投稿（買家秀）", desc: "お客様の実物投稿の確認・非表示/削除" },
+    { href: "/admin/showcase", title: "実物投稿（みんなの実物）", desc: "お客様の実物投稿の確認・非表示/削除" },
     { href: "/admin/blog", title: "ブログ管理", desc: "記事 zip のアップロード・公開/下書き・削除（再デプロイ不要）" },
   ];
   return (

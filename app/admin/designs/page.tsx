@@ -50,7 +50,7 @@ interface Version {
   createdAt: string;
 }
 
-const SOURCE_LABEL: Record<string, string> = { ai: "AI", edit: "編集(旧)", cs: "CS手動稿", customer: "お客様" };
+const SOURCE_LABEL: Record<string, string> = { ai: "AI", edit: "編集(旧)", cs: "CS作成デザイン", customer: "お客様" };
 // Metal COLOUR of the artwork (the material is chosen at checkout).
 const METAL_LABEL: Record<string, string> = {
   gold: "ゴールド",
@@ -173,7 +173,7 @@ export default function AdminLeadsPage() {
       body: JSON.stringify({ action: "upload", designId: open.designId, dataUrl }),
     });
     if (res.ok) {
-      message.success("CS手動稿をアップしました");
+      message.success("CS作成デザインをアップしました");
       loadVersions(open.designId);
       load();
     } else {
@@ -443,14 +443,14 @@ export default function AdminLeadsPage() {
           </Space>
         )}
         <Upload accept="image/*" showUploadList={false} beforeUpload={(f) => (uploadCs(f), false)}>
-          <Button type="primary">CS手動稿をアップ</Button>
+          <Button type="primary">CS作成デザインをアップ</Button>
         </Upload>
         <div style={{ marginTop: 16 }}>
           {original && (
             <div style={{ display: "flex", gap: 12, padding: 12, borderRadius: 12, background: "#fdf6f3", marginBottom: 12 }}>
               <Image src={original} alt="元写真" width={84} height={84} style={{ objectFit: "cover", borderRadius: 10 }} />
               <div>
-                <Tag color="magenta">元写真（原件）</Tag>
+                <Tag color="magenta">元写真</Tag>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 6 }}>すべての試作はこの元写真から生成されています。</div>
                 <a href={original} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
                   原寸でダウンロード

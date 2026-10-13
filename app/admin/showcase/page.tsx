@@ -100,7 +100,7 @@ export default function AdminShowcasePage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 24, marginBottom: 16 }}>実物投稿（買家秀）の管理</h1>
+      <h1 style={{ fontSize: 24, marginBottom: 16 }}>実物投稿（みんなの実物）の管理</h1>
       <ProTable<Row>
         rowKey="id"
         loading={loading}

@@ -175,7 +175,7 @@ export default function AdminOrdersPage() {
               {r.items.length > 1 && <b>#{i + 1} </b>}
               {it.designMode === "human" && (
                 <Tag color="purple" style={{ marginRight: 4 }}>
-                  人工デザイン
+                  デザイナー対応
                 </Tag>
               )}
               {specOf(it)}
@@ -241,14 +241,14 @@ export default function AdminOrdersPage() {
       dataIndex: "human",
       width: 110,
       filters: [
-        { text: "人工デザイン", value: true },
+        { text: "デザイナー対応", value: true },
         { text: "AI案", value: false },
       ],
       onFilter: (v, r) => r.human === v,
       render: (_, r) =>
         r.human ? (
           <Space direction="vertical" size={0}>
-            <Tag color="purple">人工デザイン</Tag>
+            <Tag color="purple">デザイナー対応</Tag>
             {r.status === "received" && <span style={{ fontSize: 11, color: "#cf1322" }}>校正待ち</span>}
           </Space>
         ) : (
@@ -318,7 +318,7 @@ export default function AdminOrdersPage() {
                       #{i + 1} {specOf(it)}
                       {it.designMode === "human" && (
                         <Tag color="purple" style={{ marginLeft: 6 }}>
-                          人工デザイン
+                          デザイナー対応
                         </Tag>
                       )}
                     </div>
@@ -338,7 +338,7 @@ export default function AdminOrdersPage() {
                       )}
                       {it.original && (
                         <a href={it.original} target="_blank" rel="noopener noreferrer">
-                          原件を保存
+                          元写真を保存
                         </a>
                       )}
                     </Space>
@@ -384,7 +384,7 @@ export default function AdminOrdersPage() {
               )}
               {it.original && (
                 <a href={it.original} target="_blank" rel="noopener noreferrer">
-                  元写真（原件）
+                  元写真
                 </a>
               )}
             </Space>

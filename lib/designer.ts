@@ -68,13 +68,13 @@ export async function sendDesignerHandoff(session: Stripe.Checkout.Session) {
         <p style="margin:0 0 8px;white-space:pre-wrap;color:#4a2530">${esc(it.brief || "（要望の記入なし）")}</p>
         ${it.original ? `<a href="${it.original}"><img src="${it.original}" width="120" style="border-radius:8px;margin-right:8px" alt="元写真"></a>` : ""}
         ${it.artwork ? `<a href="${it.artwork}"><img src="${it.artwork}" width="120" style="border-radius:8px" alt="参考にしたAI案"></a>` : ""}
-        <p style="margin:6px 0 0;font-size:12px;color:#9b7a80">左：元写真（原件） ${it.artwork ? "／ 右：お客様が選んだAI案（参考）" : ""}</p>
+        <p style="margin:6px 0 0;font-size:12px;color:#9b7a80">左：元写真 ${it.artwork ? "／ 右：お客様が選んだAI案（参考）" : ""}</p>
       </div>`,
     )
     .join("");
   await sendMail(
     designerTo,
-    `【人工デザイン依頼】${customer || session.id}`,
+    `【デザイナー対応のご依頼】${customer || session.id}`,
     `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#4a2530">
       <h1 style="font-size:20px;margin:0 0 8px">デザイナー仕上げのご注文が入りました</h1>
       <p style="color:#6b4a52;margin:0 0 4px">お客様：${esc(customer || "—")}</p>
