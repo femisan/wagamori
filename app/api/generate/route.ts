@@ -1,10 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import OpenAI, { toFile } from "openai";
-import type { StyleId } from "@/lib/products";
+import { getActor } from "@/lib/actor";
+import { requireEditAccess } from "@/lib/edit-access";
+import { putDesignBytes } from "@/lib/blob";
+import {
+  addVersion,
+  anonAttemptCount,
+  claimAnonDesigns,
+  createDesign,
+  getDesignForActor,
+  getVersion,
+  nextRound,
+  touchDesign,
+} from "@/lib/db/designs";
+import { setMarketingConsent } from "@/lib/db/leads";
+import { isMetal, type MetalId } from "@/lib/products";
 
-// Per-IP rate limit: N requests per hour before gpt-image-1 is called.
+// Every preview is ONE generation from a reference the customer chooses:
+//   - "original" (default for a fresh attempt) — regenerated from the upload, no drift;
+//   - a version id — refine THAT version with the customer's wish (e.g. "go back to
+//     version 2 and make the face bigger").
+//   - Guests get exactly one free preview (saved under an anonymous cookie).
+//   - Signed-in users can try again as often as the daily cap allows, optionally
+//     adding a short "wish". Their first guest preview is claimed on login.
+// The original and every attempt are kept in Blob + DB for the customer, CS,
+// and the admin leads view.
+
+// Per-IP rate limit for guests: N requests per hour before gpt-image-1 is called.
 const RATE_LIMIT = 3;
+const IMAGE_QUALITY = "high" as const;
 
 // Module-level SQL handle (one per cold start — stateless HTTP driver, safe).
 const _sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
@@ -45,35 +70,33 @@ export const runtime = "nodejs";
 // gpt-image-1 can occasionally take >60s; allow headroom to avoid 504s.
 export const maxDuration = 120;
 
-type MetalTint = "gold" | "silver" | "rosegold" | "acrylic";
-
 // How many of the drawn subjects to keep.
 type SubjectMode = "solo" | "all";
-// How multiple figures are assembled into one necklace.
+// How multiple figures are assembled into one piece.
 type ConnectMode = "joined" | "linked";
 
 // Assembly + bail instructions (also fixes stray floating rings).
-function assembly(mode: SubjectMode, connection: ConnectMode): string {
+function assembly(mode: SubjectMode, connection: ConnectMode, wall: string): string {
   const noFloat =
     " CRITICAL: do NOT add any stray, floating or detached metal ring — every loop/ring must be physically attached to a figure or to a chain. ";
   if (mode !== "all") {
     return (
-      " Attach exactly ONE small gold bail loop at the very top of the pendant, physically connected to the top of the artwork (never floating separately)." +
+      ` Attach exactly ONE small ${wall} bail loop at the very top of the charm, physically connected to the top of the artwork (never floating separately).` +
       noFloat
     );
   }
   if (connection === "linked") {
     return (
       " ASSEMBLY: make each figure its OWN separate flat charm, then connect the charms side by side in a single " +
-      "horizontal row using small gold jump rings and short gold chain segments between adjacent charms (like a " +
-      "connected charm necklace). Each charm has its own small attachment loop on its side; the short chains link the " +
+      `horizontal row using small ${wall} jump rings and short chain segments between adjacent charms (like a ` +
+      "connected charm piece). Each charm has its own small attachment loop on its side; the short chains link the " +
       "charms together into one continuous piece. No charm and no ring floats unattached." +
       noFloat
     );
   }
   return (
-    " ASSEMBLY: combine ALL the figures into ONE single connected pendant — the figures touch, overlap or share one " +
-    "joined base so the whole thing is a single solid piece — with exactly ONE small gold bail loop at the very top, " +
+    " ASSEMBLY: combine ALL the figures into ONE single connected charm — the figures touch, overlap or share one " +
+    `joined base so the whole thing is a single solid piece — with exactly ONE small ${wall} bail loop at the very top, ` +
     "physically attached to the piece." +
     noFloat
   );
@@ -104,123 +127,156 @@ function isolation(mode: SubjectMode): string {
   );
 }
 
-// Colour accuracy reminder — gpt-image-1 otherwise drifts warm/yellow.
-const COLOR_ACCURACY =
-  "COLOUR ACCURACY (very important): faithfully reproduce the EXACT colours of the original artwork — keep every hue " +
-  "true to what was actually drawn (blue stays blue, red stays red, brown hair stays brown, plain/cream paper areas " +
-  "become clean neutral white). Do NOT add any yellow, golden, warm or sepia tint to the colour fills. ";
+// Metal used for the cloisonné divider walls, outline and bail.
+const METAL_WORD: Record<MetalId, string> = {
+  gold: "shiny gold",
+  rosegold: "soft rose-gold",
+  silver: "bright polished sterling-silver",
+};
 
-// Gold / rose-gold tier: flat print on a metal badge charm (not cloisonné).
-function metalBadgePrompt(metal: "gold" | "rosegold", mode: SubjectMode, connection: ConnectMode): string {
-  const metalColor = metal === "rosegold" ? "rose-gold" : "shiny gold";
-  const subj = mode === "all" ? "the whole drawing (all figures and elements together)" : "that single main subject";
+// Cloisonné-specific colour fidelity — divider lines are metallic, fills must match original.
+function colorFidelity(wall: string): string {
   return (
-    isolation(mode) +
-    `Turn ${subj} into a bold flat-print design for a ${metalColor} metal badge keychain charm. ` +
-    `Style: vibrant anime / bold cartoon illustration — large clean areas of solid flat colour, strong clean outlines, ` +
-    `vivid saturated colours. No gradients, no metallic textures inside the design itself. ` +
-    `IMPORTANT: do NOT add any cloisonné wires, enamel divider lines, or enamel cell walls — ` +
-    `this is a FLAT PRINT on metal, not cloisonné enamel. ` +
-    (mode === "all" ? `Arrange ALL figures and elements as one balanced composition. ` : ``) +
-    `The design is printed on a circular ${metalColor} metal badge with a subtle metallic sheen around the design. ` +
-    `Center the artwork on a PURE WHITE background with generous margin on all sides. ` +
-    assembly(mode, connection) +
-    COLOR_ACCURACY +
-    `The result must look like a vivid, bold graphic PRINTED on a shiny ${metalColor} metal badge — ` +
-    `not cloisonné enamel, not a photo, not a sketch.`
+    "COLOUR ACCURACY (very important): faithfully reproduce the EXACT colours of the original artwork — keep every hue " +
+    "true to what was actually drawn (blue stays blue, red stays red, brown hair stays brown, plain/cream paper areas " +
+    "become clean neutral white). Do NOT add any yellow, golden, warm or sepia tint to the colour fills and do not shift " +
+    `or recolour the palette. ONLY the thin divider lines are ${wall} metal; every colour inside the cells must match the ` +
+    "original drawing's colours. "
   );
 }
 
-// Silver tier: 925 sterling silver jewelry pendant (fine-line, minimalist).
-function silverJewelryPrompt(mode: SubjectMode): string {
-  const subj = mode === "all" ? "the whole drawing (all figures and elements)" : "that single main subject";
+// The one product the preview renders: a colourful cloisonné enamel charm.
+// Only the metal (walls / outline / bail) changes with the chosen material.
+function enamelPrompt(metal: MetalId, mode: SubjectMode, connection: ConnectMode, wish: string): string {
+  const wall = METAL_WORD[metal];
+  const subj = mode === "all" ? "the whole drawing (all the figures and elements together)" : "that single subject";
   return (
     isolation(mode) +
-    `Turn ${subj} into an elegant fine-line design for a 925 sterling silver jewelry pendant. ` +
-    `Style: minimalist and refined — simplify the subject into clean, delicate thin line art. ` +
-    `Thin precise lines only; no colour fills, no gradients, no bold outlines, no enamel. ` +
-    `The design should evoke fine line engraving or silver wire-work etched into a polished silver surface. ` +
-    (mode === "all" ? `Arrange all elements into one elegant unified composition. ` : ``) +
-    `Present the artwork as subtle, precise silver-toned line art centered on a pure white background ` +
-    `with generous margin — evoking a high-end 925 silver pendant charm: refined, minimal, jewellery-quality. ` +
-    `Do NOT add any bails, rings, chains or clasps — output only the charm design. No text, no colour fills. ` +
-    `The result must feel like an elegant minimalist piece of fine silver jewellery — ` +
-    `not a sticker, not bold cartoon art, not cloisonné.`
+    `Turn ${subj} into a real handcrafted cloisonné-style colourful enamel metal charm, in TWO steps. ` +
+    `STEP 1 — STYLISE (CRITICAL): COMPLETELY abandon any photographic or realistic rendering. ` +
+    `Whether the input is a photo or a drawing, convert it entirely into a bold flat-colour-block cartoon illustration: ` +
+    `reduce everything to large areas of pure solid flat colour, clean simple outlines, ZERO photographic gradients, ` +
+    `ZERO shadows, ZERO fur/hair texture, ZERO realistic shading. The result of Step 1 must be fully 2D — ` +
+    `think of a simple anime sticker or a flat kawaii illustration. ` +
+    (mode === "all" ? `Arrange ALL the figures/elements together as one balanced composition. ` : ``) +
+    `STEP 2 — CLOISONNÉ: every flat colour area from Step 1 must be fully enclosed by thin raised ${wall} metal ` +
+    `divider lines (cloisonné wires). No two colours ever touch directly — there is ALWAYS a thin ${wall} metal wall ` +
+    `between one colour and the next, and around the outside of every shape. Fill each metal-walled cell with fine ` +
+    `coloured sand set in clear glossy UV resin: a subtle granular sandy texture with a wet, glassy resin sheen. ` +
+    `Flat colour blocks divided by metal, centered on a pure clean WHITE background with generous margin. ` +
+    `No gradients inside a cell, no text. ` +
+    assembly(mode, connection, wall) +
+    colorFidelity(wall) +
+    (wish
+      ? `CUSTOMER WISH for this version (apply it, but keep every rule above): "${wish}". `
+      : "") +
+    `CRITICAL FINAL CHECK: the output must NOT look like a photograph or a realistic portrait in any way. ` +
+    `It must look like an actual handcrafted cloisonné metal-and-resin enamel charm with visible ${wall} wire outlines.`
   );
 }
 
-// Acrylic keychains are PRINTED, not cast. The artwork needs to look great as a
-// vibrant flat print — no metal-wall illusion, no 3D depth, just clean bold graphics.
-function acrylicPrompt(mode: SubjectMode): string {
-  const subj = mode === "all" ? "the whole drawing (all figures and elements)" : "that single main subject";
+// Refine an EXISTING version (customer chose "edit this version" — e.g. to go
+// back to an earlier one and tweak it). Keep the art; apply only the wish.
+function refinePrompt(metal: MetalId, wish: string, metalChanged: boolean): string {
+  const wall = METAL_WORD[metal];
   return (
-    isolation(mode) +
-    `Turn ${subj} into a cute, vibrant sticker-style illustration perfect for printing onto a small acrylic keychain charm. ` +
-    `Style: bold anime / kawaii sticker art — clean thick outlines (important for die-cut production), ` +
-    `large flat areas of solid bright colour, no gradients, no metallic textures, no 3D effects. ` +
-    `Colours should be vivid and saturated. The design should be centered on a PURE WHITE background with generous ` +
-    `margin on all sides (the white background will be precision-cut away during production, so the thick outline ` +
-    `clearly defines the charm shape). ` +
-    `Do NOT add any metal bails, rings, chains or clasps — output ONLY the charm artwork. No text. ` +
-    COLOR_ACCURACY +
-    `The final result must look like a fun, cute printed sticker design — not a photo, not metalwork, not a sketch.`
+    `You are refining an existing handcrafted cloisonné enamel metal charm image. Apply ONLY the change the customer ` +
+    `asks for and keep everything else exactly the same — same subject, pose, composition, outlines and colours. ` +
+    `Customer request: "${wish}". ` +
+    (metalChanged
+      ? `Also re-render every metal divider wire, the outline and the bail in ${wall} metal (only the metal changes). `
+      : "") +
+    `Keep the cloisonné style intact: every area of colour fully enclosed by thin raised ${wall} metal divider lines, ` +
+    `no two colours touching, coloured-sand + glossy UV resin fill, flat colour blocks, a pure clean WHITE background, ` +
+    `exactly one small ${wall} bail loop attached to the piece, and NO floating/detached rings. Keep all other colours ` +
+    `faithful to the current image and do not add a yellow/warm tint. Never add subjects that are not already there. No text.`
   );
 }
 
-function promptFor(style: StyleId, metal: MetalTint, mode: SubjectMode, connection: ConnectMode): string {
-  // Acrylic is material-driven regardless of style — always produces a flat print.
-  if (metal === "acrylic") return acrylicPrompt(mode);
-  if (style === "engraved") {
-    const subj = mode === "all" ? "the whole drawing" : "that subject";
-    return (
-      isolation(mode) +
-      `Convert ${subj} into an elegant minimalist single-line-art portrait: thin clean black lines on a pure white ` +
-      `background, no shading, no colour, centered with margin, suitable for laser-engraving onto a small gold pendant. No text.`
-    );
-  }
-  if (style === "photo") {
-    const subj = mode === "all" ? "the subjects" : "that subject only";
-    return (
-      isolation(mode) +
-      `Produce a clean, softly-lit portrait of ${subj}, cleanly cut out from the original background and placed on a ` +
-      `neutral cream studio background, centered with margin, suitable for setting inside a small round jewelry pendant. ` +
-      `Keep it photographic and true to the original colours. No text.`
-    );
-  }
-  // Default "enamel" style — route by material tier.
-  // Silver is 925 sterling silver jewellery: fine-line minimalist engraving look.
-  if (metal === "silver") return silverJewelryPrompt(mode);
-  // Gold and rose-gold are printed metal badge charms (not cloisonné).
-  return metalBadgePrompt(metal as "gold" | "rosegold", mode, connection);
+function clientIp(req: NextRequest) {
+  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? "unknown";
 }
 
 export async function POST(req: NextRequest) {
-  // Rate-limit before any expensive work; use x-forwarded-for set by Vercel.
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-  const { allowed, retryAfter } = await checkRateLimit(ip);
-  if (!allowed) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: `You've reached the limit of ${RATE_LIMIT} free previews per hour. Please try again later.`,
-      },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } },
-    );
-  }
-
   try {
     const form = await req.formData();
     const file = form.get("image");
-    const style = (form.get("style") as StyleId) || "enamel";
-    const metal = (form.get("metal") as MetalTint) || "gold";
-    const subjects: SubjectMode = form.get("subjects") === "solo" ? "solo" : "all";
-    const connection: ConnectMode = form.get("connection") === "linked" ? "linked" : "joined";
+    const designIdIn = (form.get("designId") as string) || "";
+    const metalRaw = form.get("metal");
+    const metal: MetalId = isMetal(metalRaw) ? metalRaw : "gold";
+    const subjects: SubjectMode = form.get("subjects") === "all" ? "all" : "solo";
+    const connection: ConnectMode = form.get("connection") === "joined" ? "joined" : "linked";
+    const optInRaw = form.get("optIn");
+    // Reference image: "original" (default) or the id of a version to refine.
+    const baseRaw = ((form.get("base") as string) || "original").trim();
+    // Validate before spending the user's daily quota.
+    if (baseRaw !== "original" && !((form.get("wish") as string) || "").trim()) {
+      return NextResponse.json({ ok: false, error: "wish_required" }, { status: 400 });
+    }
 
-    if (!(file instanceof Blob)) {
-      return NextResponse.json({ ok: false, error: "No image uploaded." }, { status: 400 });
+    const actor = await getActor();
+
+    // ---- access: one free guest preview; more needs an account ----
+    let remaining: number | null = null;
+    if (!actor.userId) {
+      if (designIdIn || (await anonAttemptCount(actor.anonId)) >= 1) {
+        return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
+      }
+      const { allowed, retryAfter } = await checkRateLimit(clientIp(req));
+      if (!allowed) {
+        return NextResponse.json(
+          { ok: false, error: "rate_limited" },
+          { status: 429, headers: { "Retry-After": String(retryAfter) } },
+        );
+      }
+    } else {
+      const access = await requireEditAccess();
+      if (!access.ok) {
+        return NextResponse.json(
+          { ok: false, error: access.reason },
+          { status: access.reason === "rate_limited" ? 429 : 401 },
+        );
+      }
+      remaining = access.remaining;
+      await claimAnonDesigns(actor.anonId, actor.userId, actor.email).catch(() => {});
+    }
+    // Wishes are a signed-in feature; guests get the plain first preview.
+    const wish = actor.userId ? ((form.get("wish") as string) || "").trim().slice(0, 200) : "";
+
+    // ---- resolve the ORIGINAL image (always the source of every attempt) ----
+    let design = designIdIn ? await getDesignForActor(designIdIn, actor) : null;
+    if (designIdIn && !design) {
+      return NextResponse.json({ ok: false, error: "design_not_found" }, { status: 404 });
+    }
+
+    // Refining a version: it must belong to this design, and needs a wish.
+    let baseVersion: Awaited<ReturnType<typeof getVersion>> = null;
+    if (baseRaw !== "original") {
+      if (!design) return NextResponse.json({ ok: false, error: "design_not_found" }, { status: 404 });
+      baseVersion = await getVersion(baseRaw);
+      if (!baseVersion || baseVersion.designId !== design.id) {
+        return NextResponse.json({ ok: false, error: "base_not_found" }, { status: 404 });
+      }
+      if (!wish) return NextResponse.json({ ok: false, error: "wish_required" }, { status: 400 });
+    }
+
+    let originalBytes: Buffer;
+    let originalType: string;
+    if (baseVersion) {
+      const r = await fetch(baseVersion.imageUrl);
+      if (!r.ok) return NextResponse.json({ ok: false, error: "base_missing" }, { status: 410 });
+      originalBytes = Buffer.from(await r.arrayBuffer());
+      originalType = r.headers.get("content-type") || "image/png";
+    } else if (design?.originalUrl) {
+      const r = await fetch(design.originalUrl);
+      if (!r.ok) return NextResponse.json({ ok: false, error: "original_missing" }, { status: 410 });
+      originalBytes = Buffer.from(await r.arrayBuffer());
+      originalType = r.headers.get("content-type") || "image/png";
+    } else if (file instanceof Blob) {
+      originalBytes = Buffer.from(await file.arrayBuffer());
+      originalType = file.type || "image/png";
+    } else {
+      return NextResponse.json({ ok: false, error: "no_image" }, { status: 400 });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
@@ -229,16 +285,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, fallback: true, reason: "no_api_key" });
     }
 
-    const openai = new OpenAI({ apiKey });
-    const buf = Buffer.from(await file.arrayBuffer());
-    const image = await toFile(buf, "upload.png", { type: file.type || "image/png" });
+    // First attempt on a new upload → keep the original before spending on AI.
+    if (!design) {
+      try {
+        const originalUrl = await putDesignBytes(originalBytes, "original", originalType);
+        if (originalUrl) {
+          design = await createDesign({
+            userId: actor.userId,
+            anonId: actor.anonId,
+            email: actor.email,
+            originalUrl,
+            metal,
+          });
+        }
+      } catch {
+        /* storage unavailable — still return a preview, just without history */
+      }
+    }
 
+    const openai = new OpenAI({ apiKey });
+    const image = await toFile(originalBytes, baseVersion ? "current.png" : "original.png", { type: originalType });
+    const prompt = baseVersion
+      ? refinePrompt(metal, wish, !!baseVersion.metal && baseVersion.metal !== metal)
+      : enamelPrompt(metal, subjects, connection, wish);
     const result = await openai.images.edit({
       model: "gpt-image-1",
       image,
-      prompt: promptFor(style, metal, subjects, connection),
+      prompt,
       size: "1024x1024",
-      quality: "medium",
+      quality: IMAGE_QUALITY,
       n: 1,
     });
 
@@ -246,8 +321,52 @@ export async function POST(req: NextRequest) {
     if (!b64) {
       return NextResponse.json({ ok: false, fallback: true, reason: "empty" });
     }
+    const dataUrl = `data:image/png;base64,${b64}`;
 
-    return NextResponse.json({ ok: true, image: `data:image/png;base64,${b64}` });
+    // ---- save this attempt (best-effort; never block the preview) ----
+    let versionId: string | null = null;
+    let imageUrl: string | null = null;
+    let round = 0;
+    if (design) {
+      try {
+        imageUrl = await putDesignBytes(Buffer.from(b64, "base64"), "v", "image/png");
+        if (imageUrl) {
+          round = await nextRound(design.id);
+          const v = await addVersion({
+            designId: design.id,
+            round,
+            source: "ai",
+            instruction: wish || null,
+            baseVersionId: baseVersion?.id ?? null,
+            imageUrl,
+            style: "enamel",
+            metal,
+            subjects,
+            connection,
+          });
+          versionId = v?.id ?? null;
+        }
+        await touchDesign(design.id, { email: actor.email, metal });
+        if (actor.userId && actor.email && (optInRaw === "1" || optInRaw === "0")) {
+          await setMarketingConsent(actor.email, actor.userId, optInRaw === "1");
+        }
+      } catch {
+        /* history save failed — the preview still returns */
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      image: imageUrl ?? dataUrl,
+      designId: design?.id ?? null,
+      versionId,
+      round,
+      metal,
+      wish: wish || null,
+      baseVersionId: baseVersion?.id ?? null,
+      remaining,
+      signedIn: !!actor.userId,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     // Any failure (quota, content, timeout) → client falls back gracefully.

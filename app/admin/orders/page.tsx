@@ -4,19 +4,34 @@ import { useEffect, useState, useCallback } from "react";
 import { ProTable, type ProColumns } from "@ant-design/pro-components";
 import { Tag, Image, Modal, Select, Input, Button, message, Space } from "antd";
 
+interface Item {
+  artwork: string;
+  original: string;
+  metal: string;
+  form: string;
+  engraving: string;
+  notes: string;
+  price: number | null;
+  designId: string;
+  designMode: "ai" | "human";
+  brief: string;
+}
+
 interface Row {
   id: string;
+  orderId: string;
   created: number;
   email: string;
   amount: number;
+  discount: number;
+  promoCode: string;
   paid: boolean;
   status: string;
   tracking: string;
   approval: string;
-  artwork: string;
-  original: string;
   proof: string;
-  spec: string;
+  items: Item[];
+  human: boolean;
   notes: string;
   address: string;
   addressCopy: string;
@@ -30,6 +45,17 @@ const STATUS_LABEL: Record<string, string> = {
   shipped: "発送済み",
 };
 const STATUS_OPTS = Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }));
+const METAL_LABEL: Record<string, string> = {
+  gold: "合金・ゴールド",
+  rosegold: "合金・ローズゴールド",
+  silver: "シルバー925",
+  acrylic: "アクリル(終了)",
+};
+const FORM_LABEL: Record<string, string> = { necklace: "ネックレス", bracelet: "ブレスレット", keychain: "キーホルダー" };
+const specOf = (it: Item) =>
+  [FORM_LABEL[it.form] ?? it.form, METAL_LABEL[it.metal] ?? it.metal, it.engraving ? `刻印「${it.engraving}」` : ""]
+    .filter(Boolean)
+    .join(" · ");
 
 export default function AdminOrdersPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -91,17 +117,33 @@ export default function AdminOrdersPage() {
   };
 
   const filtered = kw
-    ? rows.filter((r) => `${r.email} ${r.id} ${r.spec} ${r.address} ${r.phone}`.toLowerCase().includes(kw.toLowerCase()))
+    ? rows.filter((r) =>
+        `${r.email} ${r.id} ${r.orderId} ${r.items.map(specOf).join(" ")} ${r.address} ${r.phone} ${r.promoCode}`
+          .toLowerCase()
+          .includes(kw.toLowerCase()),
+      )
     : rows;
 
   const columns: ProColumns<Row>[] = [
     {
-      title: "作品",
-      dataIndex: "artwork",
-      width: 64,
+      title: "アイテム",
+      dataIndex: "items",
+      width: 150,
       search: false,
-      render: (_, r) =>
-        r.artwork ? <Image src={r.artwork} alt="作品" width={48} height={48} style={{ objectFit: "cover", borderRadius: 8 }} /> : "—",
+      render: (_, r) => (
+        <Image.PreviewGroup>
+          <Space size={4} wrap>
+            {r.items.slice(0, 3).map((it, i) =>
+              it.artwork ? (
+                <Image key={i} src={it.artwork} alt={`作品${i + 1}`} width={44} height={44} style={{ objectFit: "cover", borderRadius: 8 }} />
+              ) : (
+                <span key={i}>—</span>
+              ),
+            )}
+            {r.items.length > 3 && <Tag>+{r.items.length - 3}</Tag>}
+          </Space>
+        </Image.PreviewGroup>
+      ),
     },
     {
       title: "注文",
@@ -115,7 +157,27 @@ export default function AdminOrdersPage() {
         </div>
       ),
     },
-    { title: "仕様", dataIndex: "spec", width: 200, ellipsis: true },
+    {
+      title: "仕様",
+      dataIndex: "items",
+      key: "spec",
+      width: 220,
+      render: (_, r) => (
+        <div style={{ fontSize: 12, whiteSpace: "normal" }}>
+          {r.items.map((it, i) => (
+            <div key={i}>
+              {r.items.length > 1 && <b>#{i + 1} </b>}
+              {it.designMode === "human" && (
+                <Tag color="purple" style={{ marginRight: 4 }}>
+                  人工デザイン
+                </Tag>
+              )}
+              {specOf(it)}
+            </div>
+          ))}
+        </div>
+      ),
+    },
     {
       title: "お届け先",
       dataIndex: "address",
@@ -144,7 +206,17 @@ export default function AdminOrdersPage() {
       dataIndex: "amount",
       width: 100,
       sorter: (a, b) => a.amount - b.amount,
-      render: (_, r) => "¥" + r.amount.toLocaleString("ja-JP"),
+      render: (_, r) => (
+        <div>
+          <div>¥{r.amount.toLocaleString("ja-JP")}</div>
+          {r.discount > 0 && (
+            <div style={{ fontSize: 11, color: "#cf1322" }}>
+              −¥{r.discount.toLocaleString("ja-JP")}
+              {r.promoCode ? ` (${r.promoCode})` : ""}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: "支払",
@@ -154,8 +226,28 @@ export default function AdminOrdersPage() {
         { text: "支払済", value: true },
         { text: "未", value: false },
       ],
+      defaultFilteredValue: [true],
       onFilter: (v, r) => r.paid === v,
       render: (_, r) => (r.paid ? <Tag color="green">支払済</Tag> : <Tag>未</Tag>),
+    },
+    {
+      title: "デザイン",
+      dataIndex: "human",
+      width: 110,
+      filters: [
+        { text: "人工デザイン", value: true },
+        { text: "AI案", value: false },
+      ],
+      onFilter: (v, r) => r.human === v,
+      render: (_, r) =>
+        r.human ? (
+          <Space direction="vertical" size={0}>
+            <Tag color="purple">人工デザイン</Tag>
+            {r.status === "received" && <span style={{ fontSize: 11, color: "#cf1322" }}>校正待ち</span>}
+          </Space>
+        ) : (
+          <Tag>AI案</Tag>
+        ),
     },
     {
       title: "状態",
@@ -193,13 +285,64 @@ export default function AdminOrdersPage() {
         options={{ reload: () => load(), setting: true, density: true }}
         headerTitle={
           <Input.Search
-            placeholder="メール / ID / 仕様 / 住所で検索"
+            placeholder="メール / ID / 仕様 / 住所 / クーポンで検索"
             allowClear
             style={{ width: 320 }}
             onChange={(e) => setKw(e.target.value)}
           />
         }
         pagination={{ pageSize: 20, showSizeChanger: true }}
+        expandable={{
+          expandedRowRender: (r) => (
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
+              {r.items.map((it, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, padding: 10, border: "1px solid #f1ddd9", borderRadius: 12, background: "#fff" }}>
+                  <Image.PreviewGroup>
+                    {it.artwork ? (
+                      <Image src={it.artwork} alt="制作する版" width={88} height={88} style={{ objectFit: "cover", borderRadius: 10 }} />
+                    ) : (
+                      <div style={{ width: 88 }}>—</div>
+                    )}
+                    {it.original && (
+                      <Image src={it.original} alt="元写真" width={56} height={56} style={{ objectFit: "cover", borderRadius: 8, opacity: 0.9 }} />
+                    )}
+                  </Image.PreviewGroup>
+                  <div style={{ fontSize: 12, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600 }}>
+                      #{i + 1} {specOf(it)}
+                      {it.designMode === "human" && (
+                        <Tag color="purple" style={{ marginLeft: 6 }}>
+                          人工デザイン
+                        </Tag>
+                      )}
+                    </div>
+                    {it.designMode === "human" && (
+                      <div style={{ marginTop: 4, padding: 6, background: "#f9f0ff", borderRadius: 6, whiteSpace: "pre-wrap" }}>
+                        要望：{it.brief || "（記入なし）"}
+                        {it.artwork && <div style={{ color: "#999" }}>※ 画像はお客様が参考に選んだAI案</div>}
+                      </div>
+                    )}
+                    {it.price != null && <div>¥{it.price.toLocaleString("ja-JP")}</div>}
+                    {it.notes && <div style={{ color: "#666", marginTop: 4 }}>備考：{it.notes}</div>}
+                    <Space size={8} style={{ marginTop: 6 }}>
+                      {it.artwork && (
+                        <a href={it.artwork} target="_blank" rel="noopener noreferrer">
+                          版を保存
+                        </a>
+                      )}
+                      {it.original && (
+                        <a href={it.original} target="_blank" rel="noopener noreferrer">
+                          原件を保存
+                        </a>
+                      )}
+                    </Space>
+                  </div>
+                </div>
+              ))}
+              {r.notes && <div style={{ fontSize: 12, color: "#666" }}>注文備考：{r.notes}</div>}
+            </div>
+          ),
+        }}
       />
 
       <Modal
@@ -225,11 +368,21 @@ export default function AdminOrdersPage() {
               現在の校正を見る
             </a>
           )}
-          {editing?.original && (
-            <a href={editing.original} target="_blank" rel="noopener noreferrer">
-              元写真を見る
-            </a>
-          )}
+          {editing?.items.map((it, i) => (
+            <Space key={i} size={8}>
+              <span style={{ fontSize: 12, color: "#999" }}>#{i + 1}</span>
+              {it.artwork && (
+                <a href={it.artwork} target="_blank" rel="noopener noreferrer">
+                  制作する版
+                </a>
+              )}
+              {it.original && (
+                <a href={it.original} target="_blank" rel="noopener noreferrer">
+                  元写真（原件）
+                </a>
+              )}
+            </Space>
+          ))}
           <Button
             type="link"
             href={`/track?id=${editing?.id}`}

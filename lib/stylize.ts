@@ -1,11 +1,10 @@
-import type { MetalId, StyleId } from "./products";
+import type { MetalId } from "./products";
 
 // RGB of the metal divider walls used in the cloisonné fallback.
 const METAL_RGB: Record<MetalId, [number, number, number]> = {
   gold: [232, 192, 90],
   silver: [205, 209, 212],
   rosegold: [224, 168, 153],
-  acrylic: [200, 220, 255], // light blue tint for the canvas fallback
 };
 
 /**
@@ -19,7 +18,7 @@ const METAL_RGB: Record<MetalId, [number, number, number]> = {
  */
 export async function stylizeOnCanvas(
   src: string,
-  style: StyleId,
+  style: string, // "enamel" today; legacy "engraved" / "photo" kept for old callers
   metal: MetalId = "gold",
   size = 768,
 ): Promise<string> {

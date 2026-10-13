@@ -1,25 +1,32 @@
 import { pgTable, text, timestamp, integer, boolean, uuid } from "drizzle-orm/pg-core";
 
-// A customer's design (one per uploaded photo / project).
+// A customer's design (one per uploaded photo / project). The original upload is
+// kept forever; every AI attempt is generated fresh FROM THAT ORIGINAL (never
+// chained off a previous AI image), so attempts don't drift.
 export const designs = pgTable("designs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: text("user_id").notNull(), // Clerk user id
+  userId: text("user_id"), // Clerk user id (null while an anonymous first preview)
+  anonId: text("anon_id"), // cookie id for a guest's first preview, claimed on login
+  email: text("email"), // Clerk primary email, captured when the user generates
   title: text("title"),
-  status: text("status").default("draft").notNull(), // draft | ordered | in_production | shipped
+  status: text("status").default("draft").notNull(), // draft | ordered
   originalUrl: text("original_url"), // the uploaded photo (Vercel Blob)
+  metal: text("metal"), // last material/colour the customer generated with
   selectedVersionId: uuid("selected_version_id"), // which version is the chosen/final draft
+  orderedAt: timestamp("ordered_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Every generation / edit / CS revision — full history, so any past version
-// can be re-selected (e.g. "go back to v1") and CS manual drafts are tracked.
+// Every AI attempt / CS revision — full history, so any past version can be
+// re-selected and CS manual drafts are tracked.
 export const designVersions = pgTable("design_versions", {
   id: uuid("id").defaultRandom().primaryKey(),
   designId: uuid("design_id").notNull(),
   round: integer("round").default(0).notNull(),
-  source: text("source").default("ai").notNull(), // ai | edit | cs | customer
-  instruction: text("instruction"), // chat prompt / CS note
+  source: text("source").default("ai").notNull(), // ai | cs (legacy: edit | customer)
+  instruction: text("instruction"), // customer's wish for this attempt / CS note
+  baseVersionId: uuid("base_version_id"), // null = generated from the original; else refined from this version
   imageUrl: text("image_url").notNull(), // Vercel Blob URL
   style: text("style"),
   metal: text("metal"),
@@ -75,7 +82,54 @@ export const orders = pgTable("orders", {
   tracking: text("tracking"),
   artworkUrl: text("artwork_url"), // the finished pendant art (Blob URL)
   originalUrl: text("original_url"), // the customer's original upload
-  spec: text("spec"), // JSON of the Customization, for display + reorder
+  spec: text("spec"), // JSON of the first item's Customization (legacy single-item)
+  shipName: text("ship_name"),
+  shipAddress: text("ship_address"), // multi-line, label-ready
+  phone: text("phone"),
+  promoCode: text("promo_code"), // discount code used at checkout, if any
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// One row per piece in an order (an order can hold several designs).
+export const orderItems = pgTable("order_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orderId: uuid("order_id").notNull(),
+  designId: uuid("design_id"),
+  versionId: uuid("version_id"),
+  artworkUrl: text("artwork_url"), // the AI/CS version being produced
+  originalUrl: text("original_url"), // the customer's original upload
+  metal: text("metal"),
+  form: text("form"),
+  engraving: text("engraving"),
+  notes: text("notes"),
+  designMode: text("design_mode").default("ai").notNull(), // ai | human (customer asked for a designer)
+  designBrief: text("design_brief"), // what the customer wants the designer to do
+  priceJpy: integer("price_jpy"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Who may receive marketing email (特定電子メール法: opt-in + easy opt-out).
+export const marketingContacts = pgTable("marketing_contacts", {
+  email: text("email").primaryKey(),
+  userId: text("user_id"),
+  optIn: boolean("opt_in").default(false).notNull(),
+  optInAt: timestamp("opt_in_at"),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Log of discount/marketing emails sent from the admin (one row per recipient).
+export const marketingSends = pgTable("marketing_sends", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").notNull(),
+  userId: text("user_id"),
+  designId: uuid("design_id"),
+  promoCode: text("promo_code"),
+  percentOff: integer("percent_off"),
+  expiresAt: timestamp("expires_at"),
+  sentBy: text("sent_by"),
+  status: text("status").default("sent").notNull(), // sent | failed
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

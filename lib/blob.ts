@@ -10,6 +10,15 @@ export async function putBytes(bytes: Buffer, name: string, contentType: string)
   return blob.url;
 }
 
+/** Persist design artwork bytes (originals / AI versions) under designs/. */
+export async function putDesignBytes(bytes: Buffer, kind: string, contentType: string): Promise<string | null> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  const ext = contentType.split("/")[1]?.split("+")[0] || "png";
+  const rand = Math.random().toString(36).slice(2, 8);
+  const blob = await put(`designs/${kind}-${Date.now()}-${rand}.${ext}`, bytes, { access: "public", contentType });
+  return blob.url;
+}
+
 /** Persist a data URL to Vercel Blob and return its public URL (or null). */
 export async function putDataUrl(dataUrl: string, kind = "img"): Promise<string | null> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;

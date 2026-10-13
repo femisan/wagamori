@@ -1,22 +1,17 @@
 import { NextResponse } from "next/server";
 import { canManage } from "@/lib/role";
-import {
-  listAllDesignsWithThumb,
-  getVersions,
-  adminSetSelected,
-  addVersion,
-  versionCount,
-} from "@/lib/db/designs";
+import { getVersions, adminSetSelected, addVersion, nextRound } from "@/lib/db/designs";
 import { putDataUrl } from "@/lib/blob";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Version history for one design (the list itself comes from /api/admin/leads).
 export async function GET(req: Request) {
   if (!(await canManage())) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   const id = new URL(req.url).searchParams.get("id");
-  if (id) return NextResponse.json({ ok: true, versions: await getVersions(id) });
-  return NextResponse.json({ ok: true, data: await listAllDesignsWithThumb() });
+  if (!id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });
+  return NextResponse.json({ ok: true, versions: await getVersions(id) });
 }
 
 export async function POST(req: Request) {
@@ -36,10 +31,9 @@ export async function POST(req: Request) {
   if (b.action === "upload" && b.designId && b.dataUrl?.startsWith("data:")) {
     const url = await putDataUrl(b.dataUrl, "cs");
     if (!url) return NextResponse.json({ ok: false, error: "blob_failed" }, { status: 500 });
-    const round = await versionCount(b.designId);
     await addVersion({
       designId: b.designId,
-      round,
+      round: await nextRound(b.designId),
       source: "cs",
       instruction: (b.instruction || "CS手動稿").slice(0, 300),
       imageUrl: url,

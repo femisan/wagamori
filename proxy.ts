@@ -1,8 +1,8 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 // Enable Clerk so auth() is available, but keep the whole site PUBLIC.
-// The free AI preview needs no login; only the conversational edit endpoint
-// (/api/edit) requires a signed-in user — enforced in that route, not here.
+// A guest's first AI preview needs no login; further attempts require a
+// signed-in user — enforced in /api/generate, not here.
 export default clerkMiddleware();
 
 export const config = {

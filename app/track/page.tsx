@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ShareCard from "@/components/ShareCard";
 import ProofApproval from "@/components/ProofApproval";
+import DesignerContact from "@/components/DesignerContact";
 import { effectiveStatus, hoursLeft } from "@/lib/fulfillment";
 import { formatPrice } from "@/lib/products";
 import { getServerT } from "@/lib/i18n-server";
@@ -113,6 +114,11 @@ async function OrderStatus({
 
   return (
     <div className="mt-8 space-y-6">
+      {/* Designer-made order: keep the designer reachable until crafting starts */}
+      {sm.human === "1" && (statusKey === "received" || statusKey === "proof") && (
+        <DesignerContact t={t} orderId={session.id} />
+      )}
+
       {/* Status timeline */}
       <section className="card p-5">
         <div className="flex items-center justify-between">

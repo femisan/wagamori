@@ -1,12 +1,17 @@
 // Product catalogue, pricing, and customization options.
 // Prices are in the smallest Stripe currency unit. JPY is zero-decimal, so the
 // unit IS the yen (¥7,500 → 7500). No /100 anywhere.
+//
+// Every piece is a colourful cloisonné enamel charm (the AI preview only
+// renders that). What differs is the base MATERIAL:
+//   alloy  — enamel on a gold / rose-gold plated alloy badge. Great as a
+//            keychain or bag charm; NOT recommended against skin (allergy risk).
+//   silver — enamel on 925 sterling silver. Hypoallergenic → fine as jewellery.
 
-export type MetalId = "gold" | "silver" | "rosegold" | "acrylic";
+export type MaterialId = "alloy" | "silver";
+export type MetalId = "gold" | "rosegold" | "silver";
 export type ChainId = "cable" | "rope" | "satellite";
-export type StyleId = "enamel" | "engraved" | "photo";
-// The piece's form factor. A necklace can get grabbed by a baby, so we offer
-// a bracelet and a keychain too — same charm, different attachment.
+export type StyleId = "enamel";
 export type FormId = "necklace" | "bracelet" | "keychain";
 
 export interface Option<T extends string> {
@@ -17,66 +22,51 @@ export interface Option<T extends string> {
   swatch?: string; // css color for UI
 }
 
-// Three-tier pricing (JPY, zero-decimal for Stripe).
-// Tier is determined by material choice:
-//   acrylic  → ¥2,000  (printed acrylic keychain)
-//   gold / rosegold → ¥3,700  (gold-plated metal keychain)
-//   silver   → ¥7,500  (sterling silver jewellery)
-export const TIER_PRICES: Record<"acrylic" | "metal" | "silver", number> = {
-  acrylic: 2000,
-  metal: 3700,
+export const MATERIAL_PRICES: Record<MaterialId, number> = {
+  alloy: 3700,
   silver: 7500,
 };
 
-export type MaterialTier = keyof typeof TIER_PRICES;
-
-export function materialTier(metal: MetalId): MaterialTier {
-  if (metal === "acrylic") return "acrylic";
-  if (metal === "silver") return "silver";
-  return "metal";
+export interface MaterialDef {
+  id: MaterialId;
+  metals: MetalId[]; // colour finishes available on this material
+  forms: FormId[]; // allowed form factors
+  jewelry: boolean; // safe to wear against skin
 }
 
-/** @deprecated — use TIER_PRICES[materialTier(metal)] directly for clarity */
-export const BASE_PRICE = 7500;
+export const MATERIALS: MaterialDef[] = [
+  { id: "alloy", metals: ["gold", "rosegold"], forms: ["keychain"], jewelry: false },
+  { id: "silver", metals: ["silver"], forms: ["necklace", "bracelet", "keychain"], jewelry: true },
+];
+
+export function materialOf(metal: string | null | undefined): MaterialId {
+  return metal === "silver" ? "silver" : "alloy";
+}
+
+export function materialDef(id: MaterialId): MaterialDef {
+  return MATERIALS.find((m) => m.id === id) ?? MATERIALS[0];
+}
+
+export function allowedForms(metal: MetalId): FormId[] {
+  return materialDef(materialOf(metal)).forms;
+}
+
+export function isMetal(v: unknown): v is MetalId {
+  return v === "gold" || v === "rosegold" || v === "silver";
+}
+
+export function isForm(v: unknown): v is FormId {
+  return v === "necklace" || v === "bracelet" || v === "keychain";
+}
 
 export const METALS: Option<MetalId>[] = [
-  { id: "gold", label: "18k Gold Plated", desc: "Warm, classic, never fades", priceDelta: 0, swatch: "#e2c25a" },
-  { id: "silver", label: "Sterling Silver", desc: "Bright & modern", priceDelta: 0, swatch: "#c9ccce" },
-  { id: "rosegold", label: "Rose Gold", desc: "Soft, romantic blush", priceDelta: 0, swatch: "#e0a899" },
-  { id: "acrylic", label: "Acrylic Print", desc: "Vibrant full-colour print on clear acrylic", priceDelta: 0, swatch: "#e8f0fe" },
-];
-
-export const STYLES: Option<StyleId>[] = [
-  {
-    id: "enamel",
-    label: "Cloisonné Colour (sand + resin)",
-    desc: "Colours filled with coloured sand & UV resin, each one framed by metal dividers — just like the real piece",
-    priceDelta: 0,
-  },
-  {
-    id: "engraved",
-    label: "Fine Line Engraving",
-    desc: "Delicate outline etched into the metal",
-    priceDelta: -800,
-  },
-  {
-    id: "photo",
-    label: "Photo Portrait",
-    desc: "A real photo of your pet or child, set in the pendant",
-    priceDelta: 1500,
-  },
-];
-
-export const CHAINS: Option<ChainId>[] = [
-  { id: "cable", label: "Cable Chain", desc: "Everyday delicate", priceDelta: 0 },
-  { id: "rope", label: "Rope Chain", desc: "Textured & substantial", priceDelta: 1000 },
-  { id: "satellite", label: "Satellite Chain", desc: "Tiny beads, subtle sparkle", priceDelta: 700 },
+  { id: "gold", label: "Gold-plated alloy", desc: "Warm gold metal walls", priceDelta: 0, swatch: "#e2c25a" },
+  { id: "rosegold", label: "Rose-gold-plated alloy", desc: "Soft blush metal walls", priceDelta: 0, swatch: "#e0a899" },
+  { id: "silver", label: "Sterling Silver 925", desc: "Hypoallergenic, jewellery-grade", priceDelta: 0, swatch: "#c9ccce" },
 ];
 
 export const CHAIN_LENGTHS = ["16in (40cm)", "18in (45cm)", "20in (50cm)"] as const;
 
-// Form factor — same handcrafted charm, different attachment. Same price for
-// now (set a priceDelta here later if a form costs more/less to make).
 export const FORMS: Option<FormId>[] = [
   { id: "necklace", label: "Necklace", desc: "Worn close to the heart", priceDelta: 0 },
   { id: "bracelet", label: "Bracelet", desc: "On the wrist — out of little hands' reach", priceDelta: 0 },
@@ -94,7 +84,7 @@ export interface Customization {
 }
 
 export const DEFAULT_CUSTOMIZATION: Customization = {
-  form: "necklace",
+  form: "keychain",
   style: "enamel",
   metal: "gold",
   chain: "cable",
@@ -103,14 +93,34 @@ export const DEFAULT_CUSTOMIZATION: Customization = {
   notes: "",
 };
 
-export function priceFor(c: Pick<Customization, "style" | "metal" | "chain" | "form">): number {
-  const base = TIER_PRICES[materialTier(c.metal)];
-  // Acrylic is flat-price — style/chain add-ons don't apply to a printed charm.
-  if (c.metal === "acrylic") return base;
-  const s = STYLES.find((x) => x.id === c.style)?.priceDelta ?? 0;
-  const ch = CHAINS.find((x) => x.id === c.chain)?.priceDelta ?? 0;
+/** Clamp a customization to what its material allows (e.g. alloy → keychain). */
+export function normalizeCustomization(c: Partial<Customization>): Customization {
+  const metal = isMetal(c.metal) ? c.metal : DEFAULT_CUSTOMIZATION.metal;
+  const forms = allowedForms(metal);
+  const form = isForm(c.form) && forms.includes(c.form) ? c.form : forms[0];
+  return {
+    ...DEFAULT_CUSTOMIZATION,
+    style: "enamel",
+    metal,
+    form,
+    length: typeof c.length === "string" && c.length ? c.length : DEFAULT_CUSTOMIZATION.length,
+    engraving: (c.engraving ?? "").toString().slice(0, 24),
+    notes: (c.notes ?? "").toString().slice(0, 500),
+  };
+}
+
+// "ai" = produce the AI version the customer picked; "human" = the customer
+// stopped the AI and asked a designer to make the design after payment.
+export type DesignMode = "ai" | "human";
+
+// Extra charge for designer-made artwork (yen). 0 = included in the piece price.
+export const HUMAN_DESIGN_FEE = 0;
+
+/** Authoritative price — the server always recomputes this; never trust the client. */
+export function priceFor(c: Pick<Customization, "metal" | "form">, mode: DesignMode = "ai"): number {
+  const base = MATERIAL_PRICES[materialOf(c.metal)];
   const f = FORMS.find((x) => x.id === c.form)?.priceDelta ?? 0;
-  return base + s + ch + f;
+  return base + f + (mode === "human" ? HUMAN_DESIGN_FEE : 0);
 }
 
 export function formatPrice(amount: number): string {

@@ -28,7 +28,15 @@ export default async function DesignDetailPage({ params }: { params: Promise<{ i
           <div className="card mt-6 px-5 py-8 text-sm text-muted">—</div>
         ) : (
           <>
-            <h1 className="mt-3 font-display text-3xl">{t.myDesigns.history}</h1>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <h1 className="font-display text-3xl">{t.myDesigns.history}</h1>
+              <Link
+                href={`/studio?design=${design.id}`}
+                className="btn-primary cursor-pointer rounded-full px-5 py-2.5 text-sm font-medium"
+              >
+                {t.myDesigns.continue}
+              </Link>
+            </div>
 
             {design.originalUrl && (
               <div className="mt-4 flex items-center gap-3">

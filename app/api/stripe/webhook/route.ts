@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { SITE } from "@/lib/site";
 import { getDict, isLocale, defaultLocale } from "@/lib/i18n";
 import { recordOrderFromSession } from "@/lib/order-record";
+import { sendDesignerHandoff } from "@/lib/designer";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,12 @@ export async function POST(req: Request) {
       await recordOrderFromSession(session);
     } catch (e) {
       console.error("[webhook] record order threw:", e instanceof Error ? e.message : String(e));
+    }
+    try {
+      // Designer-made pieces: hand the brief to the designer + tell the customer how to reach them.
+      await sendDesignerHandoff(session);
+    } catch (e) {
+      console.error("[webhook] designer handoff threw:", e instanceof Error ? e.message : String(e));
     }
     try {
       const r = (await sendTrackingEmail(session)) as Record<string, unknown> | undefined;

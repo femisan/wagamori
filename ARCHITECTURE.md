@@ -33,45 +33,49 @@ see [`AGENTS.md`](./AGENTS.md).
 ## 2. Customer funnel
 
 ```
-  Landing (/)                       ← public marketing page (Hero, gallery, FAQ, reviews)
-      │  upload drawing/photo
-      ▼
-  Studio (/studio)
-   ├─ 1. FREE first preview         ← no login. /api/generate (gpt-image-1)
-   ├─ 2. Refine (chat)              ← LOGIN-GATED. /api/edit, rate-limited
-   │      subject mode + connection style + style chips + free-text instructions
-   ├─ 3. Customize                  ← metal / chain / engraving → price (JPY)
-   └─ 4. Checkout                   → /api/checkout → Stripe Checkout (JPY)
-      │  payment success
-      ▼
-  Success (/success)                ← QR + "save this link" prompt; emails tracking link
+  Landing (/)                       ← public marketing page (Hero, gallery, pricing, FAQ)
       │
       ▼
-  Track (/track?id=<session>)
-   ├─ status timeline: received → proof → crafting → shipped
-   ├─ design-proof approval         ← approve / request changes (ProofApproval)
-   │      auto-proceeds to crafting after 2 days (PROOF_AUTO_APPROVE_DAYS)
-   └─ shareable composite image     ← preview + original photo → one PNG (ShareCard)
+  Studio (/studio)
+   ├─ 1. Material + upload          ← alloy enamel ¥3,700 (keychain only, not for skin)
+   │                                   or 925 silver enamel ¥7,500 (hypoallergenic jewellery)
+   ├─ 2. Preview & versions         ← /api/generate. Guest: ONE free preview (saved under the
+   │      wg_anon cookie). Signed-in: more attempts (+ optional "wish"), daily-capped.
+   │      Reference per attempt: the ORIGINAL (fresh, no drift) or a SELECTED version
+   │      (refined with the wish — "go back to v2 and…"); stored as base_version_id.
+   │      "Stop the AI — ask a designer" → brief → order as design_mode='human'.
+   ├─ 3. Customize                  ← form (limited by material) + engraving
+   └─ 4. Checkout (cart)            → /api/checkout: price recomputed server-side,
+          pending order + order_items in DB → Stripe Checkout (promo codes enabled)
+      │  payment success (webhook + /success)
+      ▼
+  Success → Track (/track?id=<session>)  ← proof / crafting / shipped flow
+      designer orders: webhook emails the designer (SELLER_EMAIL) the brief + original
+      + AI reference, emails the customer how to reach them (LINE or email), and
+      success/track show a designer-contact card. The designer delivers via the
+      existing proof upload → customer approval.
 ```
 
-**Why login is gated at step 2, not step 1.** The first preview is free to maximize
-conversion (you see real output before committing). Conversational editing is the
-expensive, repeatable AI call, so it requires a Clerk session and is rate-limited —
-this is the cost-control boundary.
+**Why one free preview, then login.** The first preview is free to maximize
+conversion. Further attempts are the repeatable AI cost, so they need a Clerk session
+(daily cap in `lib/edit-access.ts`) — which also gives us the customer's email for
+follow-up. The guest's first design is claimed by their account on login
+(`claimAnonDesigns`), so nothing is lost.
 
-State survives the login round-trip via `sessionStorage` (flag `wagamori-resume`):
-when a signed-out user clicks "edit", we stash `{preview, original, customization,
-step, subjectMode, connectMode, designId}`, send them through Clerk's modal with
-`forceRedirectUrl="/studio"`, and rehydrate on return. The flag gating prevents stale
-state from leaking into a fresh visit (this was the cause of the early
-"single cat → whole family" bug).
+State survives the login round-trip via `sessionStorage` (`wagamori-resume` +
+`wagamori-studio-v2`): mostly just `{designId, versionId, customization, cart}` — the
+studio reloads the original and every version from `/api/design?id=`. Links like
+`/studio?design=<id>` (My designs, discount emails) resume a saved design directly.
 
 ---
 
 ## 3. AI pipeline
 
-All generation goes through `gpt-image-1` (`images.edit`). Prompts live in
-`app/api/generate/route.ts` (and are reused by `app/api/edit/route.ts`).
+All generation goes through `gpt-image-1` (`images.edit`), always with the customer's
+**original upload** as input. Prompts live in `app/api/generate/route.ts`. The preview
+only renders one product — colourful cloisonné enamel; the chosen metal (gold /
+rose-gold / sterling silver) colours the divider walls, outline and bail. An optional
+customer "wish" is appended to the prompt for that one attempt.
 
 **Two-step prompt** (`enamelPrompt`): _(1)_ flatten the photo into bold comic-style
 colour blocks, _(2)_ render those blocks as **cloisonné** — every colour separated
@@ -104,37 +108,25 @@ only Blob URLs. Helper queries live in `lib/db/designs.ts`; the connection is gu
 DB in demo mode.
 
 ```
-designs
-  id              text PK
-  userId          text          (Clerk user id)
-  title           text
-  status          text          design lifecycle
-  originalUrl     text          Blob URL of the uploaded photo
-  selectedVersionId text        which version the customer/CS chose
-  created/updated timestamps
+designs           one per uploaded photo
+  userId / anonId   Clerk user, or guest cookie until claimed on login
+  email             captured from Clerk when the user generates
+  originalUrl       the ORIGINAL upload (kept forever; source of every attempt)
+  metal, status     last material; draft | ordered (set when an order is paid)
+  selectedVersionId, orderedAt, created/updated
 
-designVersions
-  id              text PK
-  designId        text FK → designs
-  round           int           0 = first AI preview, 1+ = edits
-  source          text          'ai' | 'edit' | 'cs' | 'customer'
-  instruction     text          the chat instruction that produced this version
-  imageUrl        text          Blob URL
-  style/metal/subjects/connection  the params used
-  selected        bool
-  createdAt       timestamp
+design_versions   every AI attempt (source 'ai') + CS manual proofs ('cs')
+  round, instruction (customer wish / CS note), base_version_id (null = from original),
+  imageUrl, metal, subjects, connection
 
-orders
-  id              text PK
-  stripeSessionId text UNIQUE
-  userId / designId / email
-  amountJpy       int
-  status          text
-  tracking        text
-  artworkUrl      text          finished pendant art (Blob URL) — for history + reorder
-  originalUrl     text          customer's original upload
-  spec            text          JSON of the Customization — for display + reorder
-  created/updated timestamps
+orders            one per checkout (status 'pending' until paid, then fulfillment status)
+  stripeSessionId, userId, email, amountJpy, promoCode, shipName/shipAddress/phone
+order_items       one per piece: designId, versionId, artworkUrl, originalUrl,
+                  metal, form, engraving, notes, priceJpy,
+                  design_mode ('ai' | 'human'), design_brief
+
+marketing_contacts  email → optIn / unsubscribedAt (特定電子メール法 consent)
+marketing_sends     log of discount emails: promoCode, percentOff, expiresAt, sentBy
 ```
 
 Versioning lets a customer fall back to "version 1" after several edits, and lets CS
@@ -180,7 +172,7 @@ Ant Design Pro **ProTable** mounted inside Next via `AntdRegistry` (SSR-safe). G
 |------|---------|
 | `/admin` | Dashboard cards → 注文管理 / デザイン管理 |
 | `/admin/orders` | ProTable of Stripe sessions: artwork thumb, order/email, spec, address, amount (sortable), paid (filter), status (filter), edit modal (status + tracking). Keyword search. Horizontal scroll (`scroll={{x:1040}}`) so it doesn't wrap on mobile. |
-| `/admin/designs` | ProTable of designs + Drawer showing version history; "この版を採用" (select a version) and "CS手動稿をアップ" (upload a manual proof). |
+| `/admin/designs` | **Designs & leads**: every design with original + latest attempt, email, consent, attempt count, ordered/not. Filter "not ordered, N+ attempts, opted-in" → select → **send discount email** (admin-only: creates a Stripe coupon + one single-use promotion code per person, 14-day cooldown, unsubscribe link). Drawer: original pinned on top, every attempt with its wish; select a version / upload a CS proof. |
 
 Backing APIs (`/api/admin/*`) are all `canManage()`-gated; `/api/admin/status`
 additionally accepts an `ADMIN_TOKEN` for legacy token access.
@@ -260,12 +252,12 @@ Customers upload photos of the real piece they received; others like them.
 `/my-designs/[id]` · `/my-orders` · `/admin` · `/admin/orders` · `/admin/designs` ·
 `/admin/showcase` · `/sign-in` · `/sign-up`
 
-**API:** `/api/generate` · `/api/edit` (auth + rate-limit) · `/api/checkout` ·
+**API:** `/api/generate` (1 guest preview, then auth) · `/api/design` · `/api/checkout` · `/api/unsubscribe` · `/api/admin/leads` ·
 `/api/order` · `/api/reorder` (auth) · `/api/stripe/webhook` · `/api/proof` ·
 `/api/design/select` · `/api/showcase` (GET public / POST auth) · `/api/showcase/like` ·
 `/api/cron/auto-approve` · `/api/admin/{orders,designs,status,showcase,showcase/seed,migrate}`
 
-`/api/generate` and `/api/edit` set `maxDuration = 120` (image generation is slow).
+`/api/generate` sets `maxDuration = 120` (image generation is slow).
 
 ---
 

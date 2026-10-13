@@ -23,7 +23,7 @@ export default async function MyDesignsPage() {
 
         {!userId ? (
           <div className="card mt-6 px-5 py-8 text-center">
-            <p className="text-sm text-muted">{t.studio.edit.loginNote}</p>
+            <p className="text-sm text-muted">{t.myDesigns.loginNote}</p>
             <SignInButton mode="modal">
               <button className="btn-primary mt-4 cursor-pointer rounded-full px-6 py-3 text-sm font-medium">
                 {t.nav.login}

@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CopyButton from "@/components/CopyButton";
+import DesignerContact from "@/components/DesignerContact";
 import { formatPrice } from "@/lib/products";
 import { SITE } from "@/lib/site";
 import { getServerT } from "@/lib/i18n-server";
@@ -24,12 +25,14 @@ export default async function SuccessPage({
 
   // Record the order to the buyer's history (no-op for guests / no DB).
   const secret = process.env.STRIPE_SECRET_KEY;
+  let designerOrder = false;
   if (sp.session_id && secret) {
     try {
       const stripe = new Stripe(secret);
       const session = await stripe.checkout.sessions.retrieve(sp.session_id, {
         expand: ["customer_details"],
       });
+      designerOrder = session.metadata?.human === "1";
       await recordOrderFromSession(session);
     } catch {
       /* non-blocking — the confirmation page still renders */
@@ -69,6 +72,12 @@ export default async function SuccessPage({
               <span className="font-display text-lg">{formatPrice(amount)}</span>
             </div>
             {sp.desc && <p className="mt-2 text-muted">{sp.desc}</p>}
+          </div>
+        )}
+
+        {designerOrder && sp.session_id && (
+          <div className="mt-8 w-full max-w-sm">
+            <DesignerContact t={t} orderId={sp.session_id} />
           </div>
         )}
 

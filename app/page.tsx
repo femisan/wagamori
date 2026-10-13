@@ -82,15 +82,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Three-tier pricing comparison */}
+      {/* Material / pricing comparison (alloy keychain vs 925 silver jewellery) */}
       <section id="pricing" className="mx-auto max-w-6xl px-5 py-20">
         <Header2 kicker={t.pricing.kicker} title={t.pricing.title} />
         <p className="mt-3 text-center text-muted">{t.pricing.sub}</p>
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
           {t.pricing.tiers.map((tier, i) => (
             <div
               key={tier.name}
-              className={`card relative flex flex-col p-7 ${i === 2 ? "ring-1 ring-rose/40" : ""}`}
+              className={`card relative flex flex-col p-7 ${i === t.pricing.tiers.length - 1 ? "ring-1 ring-rose/40" : ""}`}
             >
               {tier.badge && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-rose px-3 py-0.5 text-xs font-medium text-white">

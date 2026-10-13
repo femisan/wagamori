@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { SITE } from "@/lib/site";
 import { getOrderForUser } from "@/lib/db/designs";
 import { getDict, isLocale, defaultLocale } from "@/lib/i18n";
-import { type Customization } from "@/lib/products";
+import { isMetal, normalizeCustomization, priceFor, type Customization } from "@/lib/products";
 
 export const runtime = "nodejs";
 
@@ -22,23 +22,29 @@ export async function POST(req: Request) {
   const secret = process.env.STRIPE_SECRET_KEY;
   const origin = req.headers.get("origin") || SITE.url;
 
-  let c: Customization;
+  let raw: Partial<Customization> & { metal?: string };
   try {
-    c = JSON.parse(order.spec || "{}");
+    raw = JSON.parse(order.spec || "{}");
   } catch {
-    c = {} as Customization;
+    raw = {};
   }
+  // Discontinued finishes (e.g. acrylic) can't be reordered as-is.
+  if (raw.metal && !isMetal(raw.metal)) {
+    return NextResponse.json({ ok: false, error: "discontinued" }, { status: 409 });
+  }
+  const c = normalizeCustomization(raw);
   const localeRaw = (order as { locale?: string }).locale || defaultLocale;
   const locale = isLocale(localeRaw) ? localeRaw : defaultLocale;
   const t = getDict(locale);
 
-  const form = c.form || "necklace";
-  const formLabel = t.product.forms?.[form as keyof typeof t.product.forms]?.label ?? form;
-  const metalLabel = t.product.metals[c.metal as keyof typeof t.product.metals]?.label ?? c.metal ?? "";
+  const form = c.form;
+  const formLabel = t.product.forms[form]?.label ?? form;
+  const metalLabel = t.product.metals[c.metal]?.label ?? c.metal;
   const descParts = [formLabel, metalLabel];
   if (c.engraving) descParts.push(`${t.studio.summary.engraving}: "${c.engraving}"`);
   const description = descParts.filter(Boolean).join(" · ");
-  const amount = order.amountJpy ?? 0;
+  // Always today's price for this material/form — never a stale stored amount.
+  const amount = priceFor(c);
 
   // Demo mode (no Stripe key): bounce to the success page.
   if (!secret) {
@@ -48,10 +54,10 @@ export async function POST(req: Request) {
 
   const metadata: Record<string, string> = {
     form,
-    style: c.style || "enamel",
-    metal: c.metal || "gold",
-    chain: c.chain || "cable",
-    length: c.length || "",
+    style: "enamel",
+    metal: c.metal,
+    chain: c.chain,
+    length: c.length,
     engraving: c.engraving || "",
     notes: c.notes || "",
     userId,
