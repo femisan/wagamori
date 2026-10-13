@@ -232,6 +232,7 @@ const ja = {
       fixSelected: "この案を修正する",
       fromVersion: "案{n}を修正",
       wishRequired: "どこを直したいか入力してください。",
+      retryFirst: "もう一度つくる",
     },
     human: {
       button: "AIをやめて、デザイナーに依頼する",
@@ -702,6 +703,7 @@ const en = {
       fixSelected: "Edit this version",
       fromVersion: "edit of v{n}",
       wishRequired: "Tell us what to change.",
+      retryFirst: "Try again",
     },
     human: {
       button: "Stop the AI — ask a designer",

@@ -97,7 +97,12 @@ export async function POST(req: NextRequest) {
     // ---- access: one free guest preview; more needs an account ----
     let remaining: number | null = null;
     if (!actor.userId) {
-      if (designIdIn || (await anonAttemptCount(actor.anonId)) >= 1) {
+      // DB trouble must never block the free preview — the per-IP limit below still applies.
+      const used = await anonAttemptCount(actor.anonId).catch((e) => {
+        console.error("[generate] anon attempt check failed:", e instanceof Error ? e.message : e);
+        return 0;
+      });
+      if (designIdIn || used >= 1) {
         return NextResponse.json({ ok: false, error: "login_required" }, { status: 401 });
       }
       const { allowed, retryAfter } = await checkRateLimit(clientIp(req));
@@ -176,8 +181,9 @@ export async function POST(req: NextRequest) {
             metal,
           });
         }
-      } catch {
-        /* storage unavailable — still return a preview, just without history */
+      } catch (e) {
+        // Storage/DB unavailable — still return a preview, just without history.
+        console.error("[generate] saving original failed:", e instanceof Error ? e.message : e);
       }
     }
 
@@ -228,8 +234,9 @@ export async function POST(req: NextRequest) {
         if (actor.userId && actor.email && (optInRaw === "1" || optInRaw === "0")) {
           await setMarketingConsent(actor.email, actor.userId, optInRaw === "1");
         }
-      } catch {
-        /* history save failed — the preview still returns */
+      } catch (e) {
+        // History save failed — the preview still returns.
+        console.error("[generate] saving version failed:", e instanceof Error ? e.message : e);
       }
     }
 
@@ -247,7 +254,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
-    // Any failure (quota, content, timeout) → client falls back gracefully.
-    return NextResponse.json({ ok: false, fallback: true, error: message });
+    console.error("[generate] failed:", message);
+    // Real failure (quota, content policy, timeout…) — report it; the client shows
+    // a retry message instead of a fake canvas preview.
+    return NextResponse.json({ ok: false, error: "generation_failed" }, { status: 502 });
   }
 }

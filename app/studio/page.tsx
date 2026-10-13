@@ -250,24 +250,18 @@ export default function StudioPage() {
           setNeedLogin(true);
         } else if (res.status === 429) {
           setGenErr(json.error === "rate_limited" && !json.signedIn ? t.studio.preview.rateLimited : t.studio.preview.limit);
-        } else if (json.fallback && url && isFirst) {
-          // Graceful canvas fallback so the very first preview always renders.
+        } else if (json.reason === "no_api_key" && url && isFirst) {
+          // Demo / local setup without an OpenAI key: show a canvas approximation.
+          // Real failures never do this — a fake preview would mislead the customer.
           const styled = await stylizeOnCanvas(url, "enamel", metal);
           setVersions([{ id: null, round: 0, imageUrl: styled, wish: null, metal }]);
           setSelectedIdx(0);
-          setGenNote(json.reason === "no_api_key" ? t.studio.genNote.noKey : t.studio.genNote.generic);
+          setGenNote(t.studio.genNote.noKey);
         } else {
           setGenErr(t.studio.preview.failed);
         }
       } catch {
-        if (url && isFirst) {
-          const styled = await stylizeOnCanvas(url, "enamel", metal);
-          setVersions([{ id: null, round: 0, imageUrl: styled, wish: null, metal }]);
-          setSelectedIdx(0);
-          setGenNote(t.studio.genNote.generic);
-        } else {
-          setGenErr(t.studio.preview.failed);
-        }
+        setGenErr(t.studio.preview.failed);
       } finally {
         setGenerating(false);
       }
@@ -669,6 +663,15 @@ export default function StudioPage() {
                       <p role="alert" className="text-xs text-blush-deep">
                         {genErr}
                       </p>
+                    )}
+                    {/* The very first preview failed: let anyone retry it (it doesn't count as used). */}
+                    {versions.length === 0 && !generating && !needLogin && originalFile && original && (
+                      <button
+                        onClick={() => generate({ file: originalFile, url: original })}
+                        className="btn-ghost w-full cursor-pointer rounded-full px-5 py-3 text-sm font-medium"
+                      >
+                        {t.studio.preview.retryFirst}
+                      </button>
                     )}
                   </div>
                 ) : (
