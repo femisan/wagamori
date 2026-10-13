@@ -332,7 +332,6 @@ const ja = {
     designer: {
       title: "担当デザイナーにつながります",
       body: "デザイナー仕上げのご注文ありがとうございます。担当デザイナーがお写真とご要望を確認し、校正をお送りします。追加の写真やご要望があれば、お気軽にご連絡ください。",
-      line: "LINEでデザイナーに相談する",
       email: "メールでデザイナーに連絡する",
     },
   },
@@ -422,7 +421,6 @@ const ja = {
     designerSubject: "【Wagamori】担当デザイナーがデザインを作成します",
     designerHeading: "デザイナーが担当します",
     designerBody: "デザイナー仕上げのご注文ありがとうございます。担当デザイナーがお写真とご要望をもとにデザインを作成し、校正（仕上がりイメージ）をお送りします。追加の写真やご要望はいつでもお寄せください。",
-    designerLine: "LINEでデザイナーに相談する",
     designerReply: "このメールに返信するか、{email} までご連絡ください。担当デザイナーにおつなぎします。",
   },
   unsubscribe: {
@@ -800,7 +798,6 @@ const en = {
     designer: {
       title: "You're connected to a designer",
       body: "Thanks for choosing a designer-made piece. Your designer will review your photo and notes and send you a proof. Feel free to send extra photos or ideas anytime.",
-      line: "Chat with your designer on LINE",
       email: "Email your designer",
     },
   },
@@ -890,7 +887,6 @@ const en = {
     designerSubject: "Your Wagamori designer is on it",
     designerHeading: "A designer is creating your piece",
     designerBody: "Thanks for choosing a designer-made piece. Your designer will create the design from your photo and notes, then send you a proof. Send extra photos or ideas anytime.",
-    designerLine: "Chat with your designer on LINE",
     designerReply: "Just reply to this email or write to {email} — we'll pass it to your designer.",
   },
   unsubscribe: {

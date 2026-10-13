@@ -10,9 +10,9 @@ import { itemsByOrder } from "./db/designs";
 // every reference image, and the customer learns how to reach the designer.
 // The designer then uploads a proof through the existing admin proof flow.
 
-/** How a customer reaches the designer (LINE if configured, else email). */
+/** How a customer reaches the designer — email only. */
 export function designerContact() {
-  return { email: SITE.email, line: SITE.lineUrl || "" };
+  return { email: SITE.email };
 }
 
 type HandoffItem = { artwork: string; original: string; spec: string; brief: string; human: boolean };
@@ -89,10 +89,11 @@ export async function sendDesignerHandoff(session: Stripe.Checkout.Session) {
   if (!customer) return;
   const locale = isLocale(m.locale) ? m.locale : defaultLocale;
   const t = getDict(locale).email;
-  const { line, email } = designerContact();
-  const how = line
-    ? `${t.designerBody}<br><br><a href="${line}" style="color:#ca8a04">${t.designerLine}</a>`
-    : `${t.designerBody}<br><br>${t.designerReply.replace("{email}", email)}`;
+  const { email } = designerContact();
+  const how = `${t.designerBody}<br><br>${t.designerReply.replace(
+    "{email}",
+    `<a href="mailto:${email}" style="color:#ca8a04">${email}</a>`,
+  )}`;
   await sendMail(
     customer,
     t.designerSubject,
