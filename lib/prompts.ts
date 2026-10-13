@@ -1,107 +1,121 @@
 // AI prompts for the enamel-charm preview (gpt-image-1 `images.edit`).
-// Pure functions, no imports — so they can be unit-tested / tried from a script.
+// Pure functions, no imports — so they can be tried from a script.
 //
-// The key idea: the output is NOT the photo redrawn in an enamel style. It is a
-// small physical piece of jewellery DESIGNED from the photo — abstracted the way
-// a real cloisonné workshop would: simplified iconic shapes, few colours, raised
-// metal wires as the only lines, shown as a product photo of the finished charm.
+// Wording is the 2f101c7 version (best results in practice). Only two changes:
+// the bail / divider metal follows the chosen colour (it was hard-coded gold),
+// and an optional customer wish is appended for retries.
 
 export type PromptMetal = "gold" | "rosegold" | "silver";
+// How many of the drawn subjects to keep.
 export type SubjectMode = "solo" | "all";
+// How multiple figures are assembled into one necklace.
 export type ConnectMode = "joined" | "linked";
 
+// Metal colour used for the cloisonné divider walls.
 const METAL_WORD: Record<PromptMetal, string> = {
-  gold: "polished gold",
-  rosegold: "polished rose-gold",
-  silver: "polished sterling-silver",
+  gold: "shiny gold",
+  silver: "bright polished silver",
+  rosegold: "soft rose-gold",
 };
 
-// Never invent subjects; strip the real-world background and clutter.
-const NEVER_INVENT =
-  "Use ONLY the people/animals ACTUALLY PRESENT in the photo. NEVER invent, add or duplicate any person, animal, " +
-  "face or character. If only one subject is present (e.g. a single cat), the charm shows only that one subject. ";
+// Assembly + bail instructions (also fixes stray floating rings).
+function assembly(mode: SubjectMode, connection: ConnectMode, wall: string): string {
+  const noFloat =
+    " CRITICAL: do NOT add any stray, floating or detached metal ring — every loop/ring must be physically attached to a figure or to a chain. ";
+  if (mode !== "all") {
+    return (
+      ` Attach exactly ONE small ${wall} bail loop at the very top of the pendant, physically connected to the top of the artwork (never floating separately).` +
+      noFloat
+    );
+  }
+  if (connection === "linked") {
+    return (
+      " ASSEMBLY: make each figure its OWN separate flat charm, then connect the charms side by side in a single " +
+      `horizontal row using small ${wall} jump rings and short ${wall} chain segments between adjacent charms (like a ` +
+      "connected charm necklace). Each charm has its own small attachment loop on its side; the short chains link the " +
+      "charms together into one continuous piece. No charm and no ring floats unattached." +
+      noFloat
+    );
+  }
+  return (
+    " ASSEMBLY: combine ALL the figures into ONE single connected pendant — the figures touch, overlap or share one " +
+    `joined base so the whole thing is a single solid piece — with exactly ONE small ${wall} bail loop at the very top, ` +
+    "physically attached to the piece." +
+    noFloat
+  );
+}
 
-function subjects(mode: SubjectMode): string {
+// Remove the real-world background/clutter; "all" keeps every drawn figure.
+// IMPORTANT: never invent subjects that are not in the image.
+const NEVER_INVENT =
+  "Use ONLY what is ACTUALLY PRESENT in the image. NEVER invent, add, duplicate or imagine any extra person, animal, " +
+  "face or character that is not in the original. If only one subject is present (e.g. a single cat), the result must " +
+  "contain only that one subject — do NOT add any people or a family. ";
+
+function isolation(mode: SubjectMode): string {
   if (mode === "all") {
     return (
       NEVER_INVENT +
-      "Keep EVERY person/animal present (e.g. all the children in a family photo) and nothing else. " +
-      "Leave out EVERYTHING that is not a person or animal: strollers, car seats, furniture, toys, bags, straps, " +
-      "chains, clothes patterns, the floor, walls, sky, hands of other people, phone/app UI, text and watermarks. "
+      "Keep ALL the subjects and elements that are actually present in the image (for example, if a family of several " +
+      "people is drawn together, keep them all) as one piece. Do not drop any present subject and do not add any absent " +
+      "one. Remove ONLY the real-world background and clutter: table, floor, walls, the hand holding it, the phone or " +
+      "app interface, status bars, captions, watermarks, tape and any surrounding background. "
     );
   }
   return (
     NEVER_INVENT +
-    "Use only the SINGLE main subject (the pet, the child, or the main figure). Leave out everything else — other " +
-    "figures, strollers, furniture, toys, props, background, phone/app UI, text and watermarks. "
+    "Identify the SINGLE main subject actually present (the pet, the child/person, or the main figure). Use ONLY that " +
+    "one subject. Remove everything else — the background, scenery, rooms, furniture, any OTHER figures, hands holding " +
+    "it, text, watermarks and clutter. "
   );
 }
 
-// How the bail / multiple figures are built as real hardware.
-function assembly(mode: SubjectMode, connection: ConnectMode, wall: string): string {
-  const noFloat = "Every ring is physically attached; no floating or stray rings, no extra chains. ";
-  if (mode === "all" && connection === "linked") {
-    return (
-      `HARDWARE: each figure is its OWN small charm with its own ${wall} outline; the charms hang side by side, joined ` +
-      `by small ${wall} jump rings between neighbouring charms, with ONE ${wall} bail loop on top of the centre charm. ` +
-      noFloat
-    );
-  }
-  if (mode === "all") {
-    return (
-      `HARDWARE: all figures are merged into ONE charm sharing a single continuous ${wall} outline, with exactly ONE ` +
-      `small ${wall} bail loop on top. ` +
-      noFloat
-    );
-  }
-  return `HARDWARE: exactly ONE small ${wall} bail loop attached to the top edge of the charm. ` + noFloat;
+// Keep the artwork's real colours — gpt-image-1 otherwise drifts warm/yellow.
+function colorFidelity(wall: string): string {
+  return (
+    "COLOUR ACCURACY (very important): faithfully reproduce the EXACT colours of the original artwork — keep every hue " +
+    "true to what was actually drawn (blue stays blue, red stays red, brown hair stays brown, plain/cream paper areas " +
+    "become clean neutral white). Do NOT add any yellow, golden, warm or sepia tint to the colour fills and do not shift " +
+    `or recolour the palette. ONLY the thin divider lines are ${wall} metal; every colour inside the cells must match the ` +
+    "original drawing's colours. "
+  );
 }
 
-/** First / fresh attempt: design a charm FROM the original photo. */
+/** First / fresh attempt from the original photo. */
 export function enamelPrompt(metal: PromptMetal, mode: SubjectMode, connection: ConnectMode, wish = ""): string {
-  const wall = METAL_WORD[metal];
+  const wall = METAL_WORD[metal] ?? METAL_WORD.gold;
+  const subj = mode === "all" ? "the whole drawing (all the figures and elements together)" : "that single subject";
   return (
-    "TASK: Design a small handmade cloisonné enamel charm (about 3 cm tall) INSPIRED BY this photo. Do NOT trace, " +
-    "redraw or recolour the photo — turn it into a simple piece of jewellery that a craftsperson could actually make " +
-    "with metal wire and enamel. " +
-    subjects(mode) +
-    "1) ABSTRACT INTO A JEWELLERY MOTIF (most important): redesign each subject as a cute, simplified, iconic " +
-    "character — chibi proportions (large head, small rounded body), smooth rounded silhouette. Keep only what makes " +
-    "them recognisable: hairstyle shape, hair colour, main clothing colour, an obvious accessory or pose (e.g. a peace " +
-    "sign) if any. Faces are minimal: eyes as small solid dots or short curved lines, a tiny simple mouth, optional " +
-    "small blush circles — NO realistic eyes, noses, teeth, wrinkles, shading or fur/hair strands. Hair is 1–2 flat " +
-    "shapes, clothing 1–2 flat shapes. Remove patterns, prints, logos, textures and tiny details. Every colour area " +
-    "must be large and simple (nothing smaller than a grain of rice at this size). " +
-    "2) LIMITED ENAMEL PALETTE: 5–7 enamel colours in total for the whole charm, each area ONE flat colour. Pick each " +
-    "colour from the subject's real colour family (black hair stays dark, a yellow shirt stays yellow, skin a soft " +
-    "peach) but simplified to clean, slightly pastel enamel tones. No gradients, no shadows, no highlights painted in. " +
-    `3) METAL WIRES ARE THE ONLY LINES: a smooth continuous ${wall} outline forms the charm's die-cut silhouette, and ` +
-    `thin raised ${wall} cloisonné wires of even width separate every colour area and draw the facial features. ` +
-    "There are NO black or drawn outlines anywhere — every line is metal. " +
-    "4) MATERIAL: every metal-walled cell is filled with fine coloured sand set in clear glossy UV resin — slightly " +
-    "domed, glassy and smooth with a subtle granular sparkle, sitting just below the metal wire tops. " +
+    isolation(mode) +
+    `Turn ${subj} into a real handcrafted cloisonné-style enamel jewelry pendant, in TWO steps. ` +
+    `STEP 1 — STYLISE: if the input is a realistic photo, do NOT keep it photographic — reinterpret it as a bold ` +
+    `flat-colour-block cartoon/comic illustration (sticker / anime cel / pop-art): large clean areas of solid flat ` +
+    `colour, simple outlines, minimal detail, and NO photographic gradients, shadows or texture. If it is already a ` +
+    `drawing, keep its charm but simplify it into clean flat colour areas. ` +
+    (mode === "all" ? `Arrange ALL the figures/elements together as one balanced composition. ` : ``) +
+    `STEP 2 — CLOISONNÉ: every area of colour must be fully enclosed by thin raised ${wall} metal divider lines ` +
+    `(cloisonné wires). No two colours ever touch directly — there is ALWAYS a thin ${wall} metal wall between one ` +
+    `colour and the next, and around the outside of every shape. Fill each metal-walled cell with fine coloured sand ` +
+    `set in clear glossy UV resin: a subtle granular sandy texture with a wet, glassy resin sheen. Flat colour blocks ` +
+    `divided by metal, centered on a pure clean WHITE background with generous margin. No gradients inside a cell, no ` +
+    `text. ` +
     assembly(mode, connection, wall) +
-    (wish ? `CUSTOMER WISH for this version (apply it while keeping every rule above): "${wish}". ` : "") +
-    "5) PRESENTATION: a realistic macro studio product photograph of the finished physical charm, straight-on front " +
-    "view, centred on a pure white background with a soft natural shadow, the charm filling about 70% of the frame, " +
-    "with the polished metal edge thickness visible. It must clearly read as a real, small, handmade enamel " +
-    "jewellery piece — never as a photo, a painting, an illustration or a sticker."
+    colorFidelity(wall) +
+    (wish ? `CUSTOMER WISH for this version (apply it while keeping the style above): "${wish}". ` : "") +
+    `The final result must look like an actual metal-and-resin pendant, not a photo and not a flat drawing.`
   );
 }
 
-/** Refine an EXISTING version with the customer's wish (e.g. "go back to v2 and…"). */
+/** Refine an EXISTING version with the customer's wish (2f101c7 edit prompt). */
 export function refinePrompt(metal: PromptMetal, wish: string, metalChanged: boolean): string {
-  const wall = METAL_WORD[metal];
+  const wall = METAL_WORD[metal] ?? METAL_WORD.gold;
   return (
-    "This image is a handmade cloisonné enamel charm. Apply ONLY the customer's change and keep everything else " +
-    "exactly the same — same character design, pose, silhouette, colours, metal wires and presentation. " +
-    `Customer request: "${wish}". ` +
-    (metalChanged
-      ? `Also change the metal (outline, cloisonné wires, bail and rings) to ${wall}; nothing else changes. `
-      : "") +
-    "Keep it a simplified jewellery motif: flat enamel colour areas (coloured sand in glossy resin) separated only by " +
-    `thin raised ${wall} metal wires, no drawn black outlines, no realistic shading or details, a smooth continuous ` +
-    "metal outline, rings physically attached, on a pure white background as a product photo. Never add subjects " +
-    "that are not already there. No text."
+    `You are refining an existing handcrafted cloisonné enamel jewelry pendant image. Apply ONLY the change the ` +
+    `customer asks for and keep everything else the same. Customer request: "${wish.slice(0, 300)}". ` +
+    (metalChanged ? `Also change all the metal (divider lines, outline and bail) to ${wall}. ` : "") +
+    `Keep the cloisonné style intact: every area of colour fully enclosed by thin raised ${wall} metal divider lines, ` +
+    `no two colours touching, coloured-sand + glossy UV resin fill, flat colour blocks, a pure clean WHITE background, ` +
+    `exactly one small ${wall} bail loop at the top attached to the piece, and NO floating/detached rings. Keep all other ` +
+    `colours faithful to the current image and do not add a yellow/warm tint. No text.`
   );
 }
