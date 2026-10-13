@@ -1,11 +1,13 @@
 "use client";
 
-import { type MetalId, type FormId } from "@/lib/products";
+import { type MaterialId, type MetalId, type FormId } from "@/lib/products";
+import { variantLabel } from "@/lib/i18n";
 import { useI18n } from "./LangProvider";
 
 interface Props {
   /** Image to show inside the pendant (AI-stylized art or photo). */
   src?: string | null;
+  material?: MaterialId;
   metal?: MetalId;
   style?: string;
   /** Form factor — changes the top hardware (chain / split-ring / wrist band). */
@@ -31,6 +33,7 @@ const METAL_STOPS: Record<MetalId, [string, string, string]> = {
  */
 export default function NecklacePreviewCard({
   src,
+  material,
   metal = "gold",
   style = "enamel",
   form = "necklace",
@@ -41,7 +44,7 @@ export default function NecklacePreviewCard({
   const { t } = useI18n();
   const stops = METAL_STOPS[metal];
   const bezel = `linear-gradient(135deg,${stops[0]},${stops[1]} 52%,${stops[2]})`;
-  const metalLabel = t.product.metals[metal]?.label ?? "";
+  const metalLabel = variantLabel(t, material, metal);
   const formLabel = t.product.forms?.[form]?.label ?? "";
 
   return (

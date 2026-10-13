@@ -7,14 +7,14 @@ import Footer from "@/components/Footer";
 import NecklacePreviewCard from "@/components/NecklacePreviewCard";
 import ShareCard from "@/components/ShareCard";
 import { useI18n } from "@/components/LangProvider";
-import type { Dict } from "@/lib/i18n";
+import { variantLabel, type Dict } from "@/lib/i18n";
 import {
   DEFAULT_CUSTOMIZATION,
   MATERIALS,
   MATERIAL_PRICES,
   METALS,
   allowedForms,
-  materialOf,
+  allowedMetals,
   type Customization,
   type MaterialId,
   type MetalId,
@@ -51,6 +51,13 @@ type CartItem = {
   designMode: DesignMode;
   designBrief: string;
 };
+
+/** Set the metal colour, keeping the material if it offers that colour (else silver offers all). */
+function withColour(prev: Customization, metal: MetalId): Customization {
+  const material: MaterialId = allowedMetals(prev.material).includes(metal) ? prev.material : "silver";
+  const forms = allowedForms(material);
+  return { ...prev, material, metal, form: material === prev.material && forms.includes(prev.form) ? prev.form : forms[0] };
+}
 
 // Uploads above this go through a downscale so they fit the 4.5 MB function body limit.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
@@ -93,7 +100,7 @@ export default function StudioPage() {
   // Something orderable is on the canvas: an AI version, or a designer request on the original.
   const hasItem = !!preview || (designMode === "human" && !!original);
   const cartTotal = useMemo(() => cart.reduce((s, it) => s + it.price, 0), [cart]);
-  const material = materialOf(c.metal);
+  const material = c.material;
 
   // Load a saved design (original + every attempt) — used after login and from
   // "continue this design" links (/studio?design=<id>).
@@ -121,7 +128,7 @@ export default function StudioPage() {
     const idx = Math.max(0, vs.findIndex((v) => v.id === want));
     setSelectedIdx(vs.length ? (want ? idx : vs.length - 1) : 0);
     const metal = (vs[idx]?.metal ?? j.design.metal ?? "gold") as MetalId;
-    setC((prev) => ({ ...prev, metal, form: allowedForms(metal).includes(prev.form) ? prev.form : allowedForms(metal)[0] }));
+    setC((prev) => withColour(prev, metal));
     if (vs.length) setStep(2);
     return true;
   }, []);
@@ -268,12 +275,23 @@ export default function StudioPage() {
     [c.metal, originalFile, original, designId, effectiveBase, current, subjectMode, connectMode, wish, optIn, versions.length, t],
   );
 
+  // Colour change: keep the material if it offers that colour, else move to silver.
   const pickMetal = useCallback((m: MetalId) => {
+    setC((prev) => withColour(prev, m));
+  }, []);
+
+  // Material change: keep the colour if the new material offers it; reset the
+  // form to the material's primary one (silver → necklace, alloy → keychain).
+  const pickMaterial = useCallback((mat: MaterialId) => {
     setC((prev) => {
-      const forms = allowedForms(m);
-      // Switching material resets to its primary form (silver → necklace, alloy → keychain).
-      const sameMaterial = materialOf(prev.metal) === materialOf(m);
-      return { ...prev, metal: m, form: sameMaterial && forms.includes(prev.form) ? prev.form : forms[0] };
+      if (prev.material === mat) return prev;
+      const metals = allowedMetals(mat);
+      return {
+        ...prev,
+        material: mat,
+        metal: metals.includes(prev.metal) ? prev.metal : metals[0],
+        form: allowedForms(mat)[0],
+      };
     });
   }, []);
 
@@ -351,7 +369,7 @@ export default function StudioPage() {
     setDesignMode("ai");
     setBrief("");
     setShowShare(false);
-    setC((prev) => ({ ...DEFAULT_CUSTOMIZATION, metal: prev.metal, form: allowedForms(prev.metal)[0] }));
+    setC((prev) => ({ ...DEFAULT_CUSTOMIZATION, material: prev.material, metal: prev.metal, form: allowedForms(prev.material)[0] }));
   }, []);
 
   const addToCart = useCallback(() => {
@@ -418,7 +436,7 @@ export default function StudioPage() {
     }
   }, [cart, currentItem, email, locale, persist, t]);
 
-  const formOptions = allowedForms(c.metal).map((id) => ({
+  const formOptions = allowedForms(c.material).map((id) => ({
     id,
     label: t.product.forms[id].label,
     sub: t.product.forms[id].desc,
@@ -446,6 +464,7 @@ export default function StudioPage() {
               <div className="relative">
                 <NecklacePreviewCard
                   src={preview ?? original}
+                  material={c.material}
                   metal={c.metal}
                   form={c.form}
                   engraving={c.engraving}
@@ -512,7 +531,7 @@ export default function StudioPage() {
 
             {step === 1 && (
               <div className="space-y-8">
-                <MaterialPicker t={t} metal={c.metal} onPick={pickMetal} />
+                <MaterialPicker t={t} c={c} onMaterial={pickMaterial} onColour={pickMetal} />
                 <Uploader t={t} onPick={() => fileInput.current?.click()} onDrop={handleFile} />
               </div>
             )}
@@ -579,7 +598,7 @@ export default function StudioPage() {
 
                     <div>
                       <Label>{t.studio.customize.metal}</Label>
-                      <MetalChips metal={c.metal} onPick={pickMetal} disabled={generating} t={t} />
+                      <VariantPicker t={t} c={c} onMaterial={pickMaterial} onColour={pickMetal} disabled={generating} />
                       {metalMismatch && <p className="mt-1.5 text-xs text-muted">{t.studio.preview.materialChangeNote}</p>}
                     </div>
 
@@ -729,12 +748,13 @@ export default function StudioPage() {
                   // Designer-made: any material is fine (nothing is locked to an AI version).
                   <div>
                     <Label>{t.studio.customize.metal}</Label>
-                    <MetalChips metal={c.metal} onPick={pickMetal} t={t} />
+                    <VariantPicker t={t} c={c} onMaterial={pickMaterial} onColour={pickMetal} />
                   </div>
                 ) : (
-                  <div className="card flex items-center justify-between px-4 py-3 text-sm">
-                    <span className="text-muted">{t.studio.summary.metal}</span>
-                    <span className="font-medium">{t.product.metals[c.metal].label}</span>
+                  // AI version: its metal colour is fixed; the material can be any that offers it.
+                  <div>
+                    <Label>{t.studio.customize.metal}</Label>
+                    <VariantPicker t={t} c={c} onMaterial={pickMaterial} onColour={pickMetal} lockColour />
                   </div>
                 )}
 
@@ -800,7 +820,7 @@ export default function StudioPage() {
                         <img src={it.preview} alt={`#${idx + 1}`} className="h-10 w-10 rounded-lg object-cover ring-1 ring-line" />
                         <div className="min-w-0 flex-1 text-sm">
                           <p className="truncate font-medium">
-                            {t.product.forms[it.customization.form].label} · {t.product.metals[it.customization.metal].label}
+                            {t.product.forms[it.customization.form].label} · {variantLabel(t, it.customization.material, it.customization.metal)}
                             {it.designMode === "human" && ` · ${t.studio.human.badge}`}
                           </p>
                           <p className="text-xs text-muted">{formatPrice(it.price)}</p>
@@ -940,23 +960,32 @@ function Stepper({
   );
 }
 
-function MaterialPicker({ t, metal, onPick }: { t: Dict; metal: MetalId; onPick: (m: MetalId) => void }) {
-  const current = materialOf(metal);
+function MaterialPicker({
+  t,
+  c,
+  onMaterial,
+  onColour,
+}: {
+  t: Dict;
+  c: Customization;
+  onMaterial: (m: MaterialId) => void;
+  onColour: (m: MetalId) => void;
+}) {
   return (
     <section>
       <h2 className="font-display text-2xl">{t.studio.material.title}</h2>
       <p className="mt-1 text-sm text-muted">{t.studio.material.sub}</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {MATERIALS.map((m) => {
-          const info = t.studio.material[m.id as MaterialId];
-          const selected = current === m.id;
+          const info = t.studio.material[m.id];
+          const selected = c.material === m.id;
           return (
             <div
               key={m.id}
               className={`card relative px-4 pb-4 pt-5 text-left transition ${selected ? "ring-2 ring-rose/60" : "hover:border-gold-soft"}`}
             >
               <button
-                onClick={() => onPick(selected ? metal : m.metals[0])}
+                onClick={() => onMaterial(m.id)}
                 aria-pressed={selected}
                 className="absolute inset-0 cursor-pointer rounded-[inherit]"
               >
@@ -978,10 +1007,10 @@ function MaterialPicker({ t, metal, onPick }: { t: Dict; metal: MetalId; onPick:
                 {m.forms.map((f) => t.product.forms[f].label).join(" / ")}
               </p>
               {info.warn && <p className="mt-2 text-xs leading-snug text-blush-deep">{info.warn}</p>}
-              {m.metals.length > 1 && selected && (
+              {selected && m.metals.length > 1 && (
                 <div className="relative z-10 mt-3">
                   <span className="text-xs text-muted">{t.studio.material.colorLabel}</span>
-                  <MetalChips metal={metal} onPick={onPick} only={m.metals} t={t} compact />
+                  <ColourChips metal={c.metal} onPick={onColour} only={m.metals} t={t} />
                 </div>
               )}
             </div>
@@ -992,26 +1021,65 @@ function MaterialPicker({ t, metal, onPick }: { t: Dict; metal: MetalId; onPick:
   );
 }
 
-function MetalChips({
+/** Material (with price) + metal colour, used after the first preview. */
+function VariantPicker({
+  t,
+  c,
+  onMaterial,
+  onColour,
+  disabled = false,
+  lockColour = false,
+}: {
+  t: Dict;
+  c: Customization;
+  onMaterial: (m: MaterialId) => void;
+  onColour: (m: MetalId) => void;
+  disabled?: boolean;
+  /** The colour is fixed (AI version chosen): only materials offering it are selectable. */
+  lockColour?: boolean;
+}) {
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {MATERIALS.map((m) => {
+          const unavailable = lockColour && !m.metals.includes(c.metal);
+          return (
+            <button
+              key={m.id}
+              onClick={() => onMaterial(m.id)}
+              disabled={disabled || unavailable}
+              aria-pressed={c.material === m.id}
+              className={`flex min-h-[36px] cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                c.material === m.id ? "border-rose bg-rose/10 font-medium" : "border-line hover:border-gold-soft"
+              }`}
+            >
+              {t.product.materials[m.id].label}
+              <span className="text-muted">{formatPrice(MATERIAL_PRICES[m.id])}</span>
+            </button>
+          );
+        })}
+      </div>
+      {!lockColour && <ColourChips metal={c.metal} onPick={onColour} only={allowedMetals(c.material)} disabled={disabled} t={t} />}
+    </div>
+  );
+}
+
+function ColourChips({
   metal,
   onPick,
   disabled = false,
   only,
   t,
-  compact = false,
 }: {
   metal: MetalId;
   onPick: (m: MetalId) => void;
   disabled?: boolean;
-  only?: MetalId[];
+  only: MetalId[];
   t: Dict;
-  /** Colour name only (inside a material card, where the price is already shown). */
-  compact?: boolean;
 }) {
-  const list = METALS.filter((m) => !only || only.includes(m.id));
   return (
     <div className="mt-1.5 flex flex-wrap gap-2">
-      {list.map((m) => (
+      {METALS.filter((m) => only.includes(m.id)).map((m) => (
         <button
           key={m.id}
           onClick={() => onPick(m.id)}
@@ -1022,8 +1090,7 @@ function MetalChips({
           }`}
         >
           <span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ background: m.swatch }} />
-          {compact ? t.studio.material.colors[m.id] : t.product.metals[m.id].label}
-          {!compact && <span className="text-muted">{formatPrice(MATERIAL_PRICES[materialOf(m.id)])}</span>}
+          {t.product.metals[m.id].label}
         </button>
       ))}
     </div>
@@ -1245,7 +1312,7 @@ function Choice({
 function OrderSummary({ c, price, t, designMode }: { c: Customization; price: number; t: Dict; designMode: DesignMode }) {
   const rows = [
     [t.studio.summary.item, t.product.forms[c.form].label],
-    [t.studio.summary.metal, t.product.metals[c.metal].label],
+    [t.studio.summary.metal, variantLabel(t, c.material, c.metal)],
     [t.studio.summary.design, designMode === "human" ? t.studio.human.badge : t.studio.summary.designAi],
     c.form === "necklace" ? [t.studio.summary.chain, c.length] : null,
     c.engraving ? [t.studio.summary.engraving, `“${c.engraving}”`] : null,

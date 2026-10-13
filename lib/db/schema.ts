@@ -99,7 +99,8 @@ export const orderItems = pgTable("order_items", {
   versionId: uuid("version_id"),
   artworkUrl: text("artwork_url"), // the AI/CS version being produced
   originalUrl: text("original_url"), // the customer's original upload
-  metal: text("metal"),
+  material: text("material"), // alloy | silver
+  metal: text("metal"), // colour: gold | rosegold | silver
   form: text("form"),
   engraving: text("engraving"),
   notes: text("notes"),

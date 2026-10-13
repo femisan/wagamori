@@ -173,6 +173,7 @@ export type PendingItem = {
   versionId?: string | null;
   artworkUrl?: string | null;
   originalUrl?: string | null;
+  material: string;
   metal: string;
   form: string;
   engraving?: string | null;
@@ -200,7 +201,13 @@ export async function createPendingOrder(o: {
       status: "pending",
       artworkUrl: first.artworkUrl ?? null,
       originalUrl: first.originalUrl ?? null,
-      spec: JSON.stringify({ form: first.form, style: "enamel", metal: first.metal, engraving: first.engraving ?? "" }),
+      spec: JSON.stringify({
+        material: first.material,
+        form: first.form,
+        style: "enamel",
+        metal: first.metal,
+        engraving: first.engraving ?? "",
+      }),
     })
     .returning();
   await db.insert(orderItems).values(
@@ -210,6 +217,7 @@ export async function createPendingOrder(o: {
       versionId: it.versionId ?? null,
       artworkUrl: it.artworkUrl ?? null,
       originalUrl: it.originalUrl ?? null,
+      material: it.material,
       metal: it.metal,
       form: it.form,
       engraving: it.engraving ?? null,

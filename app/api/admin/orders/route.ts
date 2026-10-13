@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 type Item = {
   artwork: string;
   original: string;
+  material: string;
   metal: string;
   form: string;
   engraving: string;
@@ -35,6 +36,7 @@ function itemsFromMetadata(sm: Record<string, string>): Item[] {
       out.push({
         artwork: http(str("a")),
         original: http(str("o")),
+        material: str("t"),
         metal: str("m"),
         form: str("f"),
         engraving: str("e"),
@@ -54,6 +56,7 @@ function itemsFromMetadata(sm: Record<string, string>): Item[] {
     {
       artwork: http(sm.artwork),
       original: http(sm.original),
+      material: sm.material || "",
       metal: sm.metal || "",
       form: sm.form || "necklace",
       engraving: sm.engraving || "",
@@ -91,9 +94,10 @@ export async function GET() {
     const order = orderBySession.get(s.id);
     const dbItems = order ? items.get(order.id) ?? [] : [];
     const list: Item[] = dbItems.length
-      ? dbItems.map((it: { artworkUrl: string | null; originalUrl: string | null; metal: string | null; form: string | null; engraving: string | null; notes: string | null; priceJpy: number | null; designId: string | null; designMode: string; designBrief: string | null }) => ({
+      ? dbItems.map((it: { artworkUrl: string | null; originalUrl: string | null; metal: string | null; form: string | null; engraving: string | null; notes: string | null; priceJpy: number | null; designId: string | null; designMode: string; designBrief: string | null; material: string | null }) => ({
           artwork: http(it.artworkUrl),
           original: http(it.originalUrl),
+          material: it.material || "",
           metal: it.metal || "",
           form: it.form || "",
           engraving: it.engraving || "",

@@ -51,10 +51,11 @@ interface Version {
 }
 
 const SOURCE_LABEL: Record<string, string> = { ai: "AI", edit: "編集(旧)", cs: "CS手動稿", customer: "お客様" };
+// Metal COLOUR of the artwork (the material is chosen at checkout).
 const METAL_LABEL: Record<string, string> = {
-  gold: "合金・ゴールド",
-  rosegold: "合金・ローズゴールド",
-  silver: "シルバー925",
+  gold: "ゴールド",
+  rosegold: "ローズゴールド",
+  silver: "シルバー",
   acrylic: "アクリル(終了)",
 };
 
@@ -275,7 +276,7 @@ export default function AdminLeadsPage() {
         </div>
       ),
     },
-    { title: "素材", dataIndex: "metal", width: 130, render: (_, r) => (r.metal ? METAL_LABEL[r.metal] ?? r.metal : "—") },
+    { title: "金属色", dataIndex: "metal", width: 110, render: (_, r) => (r.metal ? METAL_LABEL[r.metal] ?? r.metal : "—") },
     {
       title: "試作",
       dataIndex: "attempts",

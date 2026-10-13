@@ -64,7 +64,7 @@ export default function Hero() {
         {/* Visual */}
         <div className="relative animate-fade-up [animation-delay:120ms]">
           <div className="absolute inset-0 -z-10 mx-auto h-72 w-72 translate-y-6 rounded-full bg-blush/40 blur-3xl" />
-          <NecklacePreviewCard src="/gallery/hero.jpg" metal="silver" form="necklace" engraving={t.hero.cardEngraving} />
+          <NecklacePreviewCard src="/gallery/hero.jpg" material="silver" metal="silver" form="necklace" engraving={t.hero.cardEngraving} />
           <div className="animate-floaty absolute -right-2 top-6 hidden rotate-3 sm:block">
             <div className="card rotate-6 overflow-hidden p-1 shadow-xl">
               <img src="/gallery/doodle.jpg" alt="Child's drawing" className="h-24 w-24 rounded-lg object-cover" />

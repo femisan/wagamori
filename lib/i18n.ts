@@ -115,7 +115,7 @@ const ja = {
     title: "よくある質問",
     items: [
       { q: "プレビューはどう動きますか？", a: "写真や絵をアップロードすると、すぐにネックレスのペンダントとして表示されます。無料・登録不要です。その後アトリエが最終デザインを手仕上げしてからお作りします。" },
-      { q: "素材は何ですか？", a: "どれも金属の仕切りに色付きの砂とレジンを詰めた彩色エナメル（七宝風）です。ベースの素材は2種類：①合金（ゴールド / ローズゴールドカラー）はキーホルダー・バッグチャーム向けで、肌に長時間触れる使い方はおすすめしません。②シルバー925（純銀）は金属アレルギーが起きにくく、ネックレスやブレスレットとして毎日着けられます。" },
+      { q: "素材は何ですか？", a: "どれも金属の仕切りに色付きの砂とレジンを詰めた彩色エナメル（七宝風）です。ベースの素材は2種類：①合金（ゴールド）はキーホルダー・バッグチャーム向けで、肌に長時間触れる使い方はおすすめしません。②シルバー925（純銀）は金属アレルギーが起きにくく、ネックレスやブレスレットとして毎日着けられます。シルバーのほか、ゴールド・ローズゴールドのコーティングも選べます。" },
       { q: "ネックレス以外の形もありますか？", a: "シルバー925はネックレス・ブレスレット・キーホルダーから、合金はキーホルダー（バッグチャーム）でお作りします。小さなお子さまにネックレスを引っぱられやすい方には、ブレスレットやバッグに着けるキーホルダーがおすすめです。" },
       { q: "どのくらいかかりますか？", a: "ご注文からお届けまで通常14〜20日です（デザイン確定 → ひとつずつ手作り → 追跡付きで国際配送）。お急ぎの場合は加急料金で対応できますので、ご購入時の備考欄に「いつまでに必要か」をご記入ください。" },
       { q: "どんな写真が向いていますか？", a: "被写体が正面を向いた、明るく鮮明な写真が最適です。お子さまの絵は無地の背景で平らに撮るときれいです。どちらも当方で整えます。" },
@@ -131,15 +131,15 @@ const ja = {
         name: "合金エナメル",
         price: "¥3,700",
         badge: "キーホルダーに",
-        desc: "ゴールド / ローズゴールドカラーの合金に彩色エナメル。バッグや鍵に着けるチャームに最適。肌に長時間触れる使い方はおすすめしません。",
-        features: ["キーホルダー・バッグチャーム", "ゴールド / ローズゴールド", "彩色エナメル（砂＋レジン）"],
+        desc: "ゴールドの合金に彩色エナメル。バッグや鍵に着けるチャームに最適。肌に長時間触れる使い方はおすすめしません。",
+        features: ["キーホルダー・バッグチャーム", "ゴールド", "彩色エナメル（砂＋レジン）"],
       },
       {
         name: "シルバー925エナメル",
         price: "¥7,500",
         badge: "身に着けるなら",
         desc: "純銀925に彩色エナメル。金属アレルギーが起きにくく、ネックレス・ブレスレットとして毎日着けられるジュエリー品質。",
-        features: ["ネックレス・ブレスレット・キーホルダー", "シルバー925（アレルギーが起きにくい）", "彩色エナメル（砂＋レジン）"],
+        features: ["ネックレス・ブレスレット・キーホルダー", "シルバー / ゴールド / ローズゴールド", "シルバー925（アレルギーが起きにくい）"],
       },
     ],
     cta: "スタジオで試す →",
@@ -184,13 +184,13 @@ const ja = {
       alloy: {
         name: "合金エナメル",
         badge: "キーホルダー向け",
-        desc: "ゴールド / ローズゴールドカラーの合金ベース。バッグや鍵に着けるチャームに。",
+        desc: "ゴールドカラーの合金ベース（ゴールドのみ）。バッグや鍵に着けるチャームに。",
         warn: "金属アレルギーの心配があるため、ネックレスなど肌に触れる使い方はおすすめしません。",
       },
       silver: {
         name: "シルバー925エナメル",
         badge: "ジュエリー向け",
-        desc: "純銀925ベース。金属アレルギーが起きにくく、ネックレス・ブレスレットに。",
+        desc: "純銀925ベース。金属アレルギーが起きにくく、ネックレス・ブレスレットに。シルバーのほか、ゴールド・ローズゴールドのコーティングも選べます。",
         warn: "",
       },
       colorLabel: "カラー",
@@ -432,10 +432,14 @@ const ja = {
   },
   product: {
     metals: {
-      gold: { label: "合金エナメル・ゴールド", desc: "ゴールドカラーの合金に彩色エナメル。キーホルダー向け。" },
-      rosegold: { label: "合金エナメル・ローズゴールド", desc: "ローズゴールドカラーの合金に彩色エナメル。キーホルダー向け。" },
-      silver: { label: "シルバー925エナメル", desc: "純銀925に彩色エナメル。アレルギーが起きにくくジュエリー向け。" },
+      silver: { label: "シルバー", desc: "シルバー925そのままの色" },
+      gold: { label: "ゴールド", desc: "あたたかな金色" },
+      rosegold: { label: "ローズゴールド", desc: "やわらかな血色感" },
       acrylic: { label: "アクリルプリント（販売終了）", desc: "販売終了した旧素材です。" },
+    },
+    materials: {
+      alloy: { label: "合金エナメル", desc: "ゴールドの合金に彩色エナメル。キーホルダー向け。" },
+      silver: { label: "シルバー925エナメル", desc: "純銀925に彩色エナメル。アレルギーが起きにくくジュエリー向け。" },
     },
     styles: {
       enamel: { label: "クロワゾネ カラー（砂＋レジン）", desc: "色付きの砂とUVレジンを、金属の仕切りで一色ずつ区切って充填。実物そのままの質感です。" },
@@ -581,7 +585,7 @@ const en = {
     title: "Questions, answered",
     items: [
       { q: "How does the preview work?", a: "Upload any photo or drawing and our tool instantly shows it as pendant art on a necklace — free, no account needed. Our studio then hand-finishes the final artwork before crafting." },
-      { q: "What materials do you use?", a: "Every piece is colourful cloisonné-style enamel — metal walls filled with coloured sand and resin. There are two bases: (1) alloy in gold or rose-gold colour, made for keychains and bag charms — not recommended for long contact with skin; (2) 925 sterling silver, hypoallergenic and made to be worn every day as a necklace or bracelet." },
+      { q: "What materials do you use?", a: "Every piece is colourful cloisonné-style enamel — metal walls filled with coloured sand and resin. There are two bases: (1) gold alloy, made for keychains and bag charms — not recommended for long contact with skin; (2) 925 sterling silver, hypoallergenic and made to be worn every day as a necklace or bracelet — in silver, or plated gold / rose gold." },
       { q: "Do you offer forms other than a necklace?", a: "925 silver comes as a necklace, bracelet or keychain; alloy comes as a keychain / bag charm. If a little one tends to grab necklaces, a bracelet or a keychain on a bag works great." },
       { q: "How long does it take?", a: "From order to delivery is usually 14–20 days (design finalized → handcrafted one by one → shipped worldwide with tracking). Need it sooner? We offer a rush option — just note your deadline at checkout and we'll arrange it for an additional fee." },
       { q: "What photos work best?", a: "Clear, well-lit images with the subject facing the camera. For kids' drawings, a flat photo on a plain background is perfect. We'll clean it up either way." },
@@ -597,15 +601,15 @@ const en = {
         name: "Alloy Enamel",
         price: "¥3,700",
         badge: "For keychains",
-        desc: "Colourful enamel on a gold or rose-gold coloured alloy. Perfect on a bag or keys. Not recommended for long contact with skin.",
-        features: ["Keychain / bag charm", "Gold / rose-gold colour", "Coloured sand + resin enamel"],
+        desc: "Colourful enamel on gold alloy. Perfect on a bag or keys. Not recommended for long contact with skin.",
+        features: ["Keychain / bag charm", "Gold", "Coloured sand + resin enamel"],
       },
       {
         name: "925 Silver Enamel",
         price: "¥7,500",
         badge: "To wear",
         desc: "Colourful enamel on 925 sterling silver. Hypoallergenic and jewellery-grade — wear it every day as a necklace or bracelet.",
-        features: ["Necklace, bracelet or keychain", "925 silver (hypoallergenic)", "Coloured sand + resin enamel"],
+        features: ["Necklace, bracelet or keychain", "Silver / gold / rose gold", "925 silver (hypoallergenic)"],
       },
     ],
     cta: "Try the studio →",
@@ -650,13 +654,13 @@ const en = {
       alloy: {
         name: "Alloy Enamel",
         badge: "For keychains",
-        desc: "Gold or rose-gold coloured alloy base. Made for bag charms and keys.",
+        desc: "Gold alloy base (gold only). Made for bag charms and keys.",
         warn: "Because of metal-allergy risk, we don't recommend it for necklaces or anything worn against skin.",
       },
       silver: {
         name: "925 Silver Enamel",
         badge: "For jewellery",
-        desc: "925 sterling silver base. Hypoallergenic — great as a necklace or bracelet.",
+        desc: "925 sterling silver base. Hypoallergenic — great as a necklace or bracelet. Silver, or gold / rose-gold plated.",
         warn: "",
       },
       colorLabel: "Colour",
@@ -898,10 +902,14 @@ const en = {
   },
   product: {
     metals: {
-      gold: { label: "Alloy Enamel · Gold", desc: "Colourful enamel on gold-coloured alloy. For keychains." },
-      rosegold: { label: "Alloy Enamel · Rose Gold", desc: "Colourful enamel on rose-gold-coloured alloy. For keychains." },
-      silver: { label: "925 Silver Enamel", desc: "Colourful enamel on 925 sterling silver. Hypoallergenic, for jewellery." },
+      silver: { label: "Silver", desc: "Natural 925 silver" },
+      gold: { label: "Gold", desc: "Warm gold" },
+      rosegold: { label: "Rose gold", desc: "Soft blush" },
       acrylic: { label: "Acrylic Print (discontinued)", desc: "A discontinued former material." },
+    },
+    materials: {
+      alloy: { label: "Alloy Enamel", desc: "Colourful enamel on gold alloy. For keychains." },
+      silver: { label: "925 Silver Enamel", desc: "Colourful enamel on 925 sterling silver. Hypoallergenic, for jewellery." },
     },
     styles: {
       enamel: { label: "Cloisonné Colour (sand + resin)", desc: "Colours filled with coloured sand & UV resin, each one framed by metal dividers — just like the real piece." },
@@ -950,6 +958,13 @@ const en = {
 } satisfies typeof ja;
 
 export type Dict = typeof ja;
+
+/** "シルバー925エナメル・ゴールド" — material + colour (falls back to colour for legacy rows). */
+export function variantLabel(t: Dict, material: string | null | undefined, metal: string | null | undefined): string {
+  const colour = metal ? t.product.metals[metal as keyof Dict["product"]["metals"]]?.label ?? metal : "";
+  const mat = material ? t.product.materials[material as keyof Dict["product"]["materials"]]?.label : "";
+  return [mat, colour].filter(Boolean).join("・");
+}
 
 export const dictionaries: Record<Locale, Dict> = { ja, en };
 

@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { SITE } from "@/lib/site";
 import { getOrderForUser } from "@/lib/db/designs";
-import { getDict, isLocale, defaultLocale } from "@/lib/i18n";
+import { getDict, isLocale, defaultLocale, variantLabel } from "@/lib/i18n";
 import { isMetal, normalizeCustomization, priceFor, type Customization } from "@/lib/products";
 
 export const runtime = "nodejs";
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   const form = c.form;
   const formLabel = t.product.forms[form]?.label ?? form;
-  const metalLabel = t.product.metals[c.metal]?.label ?? c.metal;
+  const metalLabel = variantLabel(t, c.material, c.metal);
   const descParts = [formLabel, metalLabel];
   if (c.engraving) descParts.push(`${t.studio.summary.engraving}: "${c.engraving}"`);
   const description = descParts.filter(Boolean).join(" · ");
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
   const metadata: Record<string, string> = {
     form,
     style: "enamel",
+    material: c.material,
     metal: c.metal,
     chain: c.chain,
     length: c.length,

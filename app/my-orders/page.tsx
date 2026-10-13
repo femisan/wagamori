@@ -7,6 +7,7 @@ import ReorderButton from "@/components/ReorderButton";
 import { listOrdersByUser } from "@/lib/db/designs";
 import { formatPrice } from "@/lib/products";
 import { getServerT } from "@/lib/i18n-server";
+import { variantLabel } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -51,9 +52,7 @@ export default async function MyOrdersPage() {
               const formLabel = spec.form
                 ? t.product.forms?.[spec.form as keyof typeof t.product.forms]?.label ?? spec.form
                 : "";
-              const metalLabel = spec.metal
-                ? t.product.metals[spec.metal as keyof typeof t.product.metals]?.label ?? spec.metal
-                : "";
+              const metalLabel = spec.metal ? variantLabel(t, spec.material, spec.metal) : "";
               const statusIdx = Math.max(0, STATUS_KEYS.indexOf(o.status as (typeof STATUS_KEYS)[number]));
               const statusLabel = t.track.stages[statusIdx]?.t ?? o.status;
               return (
@@ -102,7 +101,7 @@ export default async function MyOrdersPage() {
   );
 }
 
-function parseSpec(spec: string | null): { form?: string; metal?: string; engraving?: string } {
+function parseSpec(spec: string | null): { form?: string; material?: string; metal?: string; engraving?: string } {
   if (!spec) return {};
   try {
     return JSON.parse(spec);

@@ -3,13 +3,16 @@
 // unit IS the yen (¥7,500 → 7500). No /100 anywhere.
 //
 // Every piece is a colourful cloisonné enamel charm (the AI preview only
-// renders that). What differs is the base MATERIAL:
-//   alloy  — enamel on a gold / rose-gold plated alloy badge. Great as a
-//            keychain or bag charm; NOT recommended against skin (allergy risk).
-//   silver — enamel on 925 sterling silver. Hypoallergenic → fine as jewellery.
+// renders that). Two things vary independently:
+//   MATERIAL — alloy: gold enamel only, keychain / bag charm only (NOT for skin:
+//              allergy risk). silver: 925 sterling silver, hypoallergenic →
+//              jewellery; can be plated, so silver / gold / rose-gold colours.
+//   COLOUR   — the metal colour (divider wires, outline, bail). The AI artwork
+//              is drawn with that colour, so a version is tied to its colour,
+//              not to its material (a gold version can be alloy or gold-plated silver).
 
 export type MaterialId = "alloy" | "silver";
-export type MetalId = "gold" | "rosegold" | "silver";
+export type MetalId = "gold" | "rosegold" | "silver"; // metal COLOUR
 export type ChainId = "cable" | "rope" | "satellite";
 export type StyleId = "enamel";
 export type FormId = "necklace" | "bracelet" | "keychain";
@@ -29,26 +32,18 @@ export const MATERIAL_PRICES: Record<MaterialId, number> = {
 
 export interface MaterialDef {
   id: MaterialId;
-  metals: MetalId[]; // colour finishes available on this material
-  forms: FormId[]; // allowed form factors
+  metals: MetalId[]; // colours available on this material (first = default)
+  forms: FormId[]; // allowed form factors (first = default)
   jewelry: boolean; // safe to wear against skin
 }
 
 export const MATERIALS: MaterialDef[] = [
-  { id: "alloy", metals: ["gold", "rosegold"], forms: ["keychain"], jewelry: false },
-  { id: "silver", metals: ["silver"], forms: ["necklace", "bracelet", "keychain"], jewelry: true },
+  { id: "alloy", metals: ["gold"], forms: ["keychain"], jewelry: false },
+  { id: "silver", metals: ["silver", "gold", "rosegold"], forms: ["necklace", "bracelet", "keychain"], jewelry: true },
 ];
 
-export function materialOf(metal: string | null | undefined): MaterialId {
-  return metal === "silver" ? "silver" : "alloy";
-}
-
-export function materialDef(id: MaterialId): MaterialDef {
-  return MATERIALS.find((m) => m.id === id) ?? MATERIALS[0];
-}
-
-export function allowedForms(metal: MetalId): FormId[] {
-  return materialDef(materialOf(metal)).forms;
+export function isMaterial(v: unknown): v is MaterialId {
+  return v === "alloy" || v === "silver";
 }
 
 export function isMetal(v: unknown): v is MetalId {
@@ -59,10 +54,27 @@ export function isForm(v: unknown): v is FormId {
   return v === "necklace" || v === "bracelet" || v === "keychain";
 }
 
+export function materialDef(id: MaterialId): MaterialDef {
+  return MATERIALS.find((m) => m.id === id) ?? MATERIALS[0];
+}
+
+/** Best guess for records saved before material was stored separately. */
+export function legacyMaterialOf(metal: string | null | undefined): MaterialId {
+  return metal === "gold" ? "alloy" : "silver";
+}
+
+export function allowedForms(material: MaterialId): FormId[] {
+  return materialDef(material).forms;
+}
+
+export function allowedMetals(material: MaterialId): MetalId[] {
+  return materialDef(material).metals;
+}
+
 export const METALS: Option<MetalId>[] = [
-  { id: "gold", label: "Gold-plated alloy", desc: "Warm gold metal walls", priceDelta: 0, swatch: "#e2c25a" },
-  { id: "rosegold", label: "Rose-gold-plated alloy", desc: "Soft blush metal walls", priceDelta: 0, swatch: "#e0a899" },
-  { id: "silver", label: "Sterling Silver 925", desc: "Hypoallergenic, jewellery-grade", priceDelta: 0, swatch: "#c9ccce" },
+  { id: "silver", label: "Silver", desc: "Bright silver", priceDelta: 0, swatch: "#c9ccce" },
+  { id: "gold", label: "Gold", desc: "Warm gold", priceDelta: 0, swatch: "#e2c25a" },
+  { id: "rosegold", label: "Rose gold", desc: "Soft blush", priceDelta: 0, swatch: "#e0a899" },
 ];
 
 export const CHAIN_LENGTHS = ["16in (40cm)", "18in (45cm)", "20in (50cm)"] as const;
@@ -74,6 +86,7 @@ export const FORMS: Option<FormId>[] = [
 ];
 
 export interface Customization {
+  material: MaterialId;
   form: FormId;
   style: StyleId;
   metal: MetalId;
@@ -84,6 +97,7 @@ export interface Customization {
 }
 
 export const DEFAULT_CUSTOMIZATION: Customization = {
+  material: "alloy",
   form: "keychain",
   style: "enamel",
   metal: "gold",
@@ -93,13 +107,16 @@ export const DEFAULT_CUSTOMIZATION: Customization = {
   notes: "",
 };
 
-/** Clamp a customization to what its material allows (e.g. alloy → keychain). */
-export function normalizeCustomization(c: Partial<Customization>): Customization {
-  const metal = isMetal(c.metal) ? c.metal : DEFAULT_CUSTOMIZATION.metal;
-  const forms = allowedForms(metal);
+/** Clamp a customization to what its material allows (alloy → gold keychain). */
+export function normalizeCustomization(c: Partial<Customization> & { metal?: string }): Customization {
+  const material: MaterialId = isMaterial(c.material) ? c.material : legacyMaterialOf(c.metal);
+  const metals = allowedMetals(material);
+  const metal = isMetal(c.metal) && metals.includes(c.metal) ? c.metal : metals[0];
+  const forms = allowedForms(material);
   const form = isForm(c.form) && forms.includes(c.form) ? c.form : forms[0];
   return {
     ...DEFAULT_CUSTOMIZATION,
+    material,
     style: "enamel",
     metal,
     form,
@@ -117,8 +134,8 @@ export type DesignMode = "ai" | "human";
 export const HUMAN_DESIGN_FEE = 0;
 
 /** Authoritative price — the server always recomputes this; never trust the client. */
-export function priceFor(c: Pick<Customization, "metal" | "form">, mode: DesignMode = "ai"): number {
-  const base = MATERIAL_PRICES[materialOf(c.metal)];
+export function priceFor(c: Pick<Customization, "material" | "form">, mode: DesignMode = "ai"): number {
+  const base = MATERIAL_PRICES[c.material];
   const f = FORMS.find((x) => x.id === c.form)?.priceDelta ?? 0;
   return base + f + (mode === "human" ? HUMAN_DESIGN_FEE : 0);
 }

@@ -7,6 +7,7 @@ import { Tag, Image, Modal, Select, Input, Button, message, Space } from "antd";
 interface Item {
   artwork: string;
   original: string;
+  material: string;
   metal: string;
   form: string;
   engraving: string;
@@ -45,15 +46,20 @@ const STATUS_LABEL: Record<string, string> = {
   shipped: "発送済み",
 };
 const STATUS_OPTS = Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }));
+const MATERIAL_LABEL: Record<string, string> = { alloy: "合金", silver: "シルバー925" };
 const METAL_LABEL: Record<string, string> = {
-  gold: "合金・ゴールド",
-  rosegold: "合金・ローズゴールド",
-  silver: "シルバー925",
+  gold: "ゴールド",
+  rosegold: "ローズゴールド",
+  silver: "シルバー",
   acrylic: "アクリル(終了)",
 };
 const FORM_LABEL: Record<string, string> = { necklace: "ネックレス", bracelet: "ブレスレット", keychain: "キーホルダー" };
 const specOf = (it: Item) =>
-  [FORM_LABEL[it.form] ?? it.form, METAL_LABEL[it.metal] ?? it.metal, it.engraving ? `刻印「${it.engraving}」` : ""]
+  [
+    FORM_LABEL[it.form] ?? it.form,
+    [MATERIAL_LABEL[it.material], METAL_LABEL[it.metal] ?? it.metal].filter(Boolean).join("・"),
+    it.engraving ? `刻印「${it.engraving}」` : "",
+  ]
     .filter(Boolean)
     .join(" · ");
 

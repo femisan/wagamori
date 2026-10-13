@@ -7,6 +7,7 @@ import DesignerContact from "@/components/DesignerContact";
 import { effectiveStatus, hoursLeft } from "@/lib/fulfillment";
 import { formatPrice } from "@/lib/products";
 import { getServerT } from "@/lib/i18n-server";
+import { variantLabel } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -105,7 +106,7 @@ async function OrderStatus({
     : t.studio.summary.itemValue;
   const summary = [
     [t.studio.summary.item, formLabel],
-    [t.studio.summary.metal, sm.metal ? t.product.metals[sm.metal as keyof typeof t.product.metals]?.label ?? sm.metal : null],
+    [t.studio.summary.metal, sm.metal ? variantLabel(t, sm.material, sm.metal) : null],
     [t.studio.summary.chain, sm.form === "necklace" || !sm.form ? sm.length || null : null],
     [t.studio.summary.engraving, sm.engraving ? `“${sm.engraving}”` : null],
   ].filter((r) => r[1]) as [string, string][];

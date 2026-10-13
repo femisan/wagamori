@@ -24,10 +24,10 @@ async function handoffItems(m: Record<string, string>): Promise<HandoffItem[]> {
   if (m.orderId) {
     const rows = (await itemsByOrder([m.orderId]).catch(() => new Map())).get(m.orderId) ?? [];
     if (rows.length) {
-      return rows.map((r: { artworkUrl: string | null; originalUrl: string | null; form: string | null; metal: string | null; engraving: string | null; designBrief: string | null; designMode: string }) => ({
+      return rows.map((r: { artworkUrl: string | null; originalUrl: string | null; form: string | null; material: string | null; metal: string | null; engraving: string | null; designBrief: string | null; designMode: string }) => ({
         artwork: http(r.artworkUrl),
         original: http(r.originalUrl),
-        spec: [r.form, r.metal, r.engraving ? `刻印「${r.engraving}」` : ""].filter(Boolean).join(" · "),
+        spec: [r.form, r.material, r.metal, r.engraving ? `刻印「${r.engraving}」` : ""].filter(Boolean).join(" · "),
         brief: r.designBrief || "",
         human: r.designMode === "human",
       }));
@@ -40,7 +40,7 @@ async function handoffItems(m: Record<string, string>): Promise<HandoffItem[]> {
       out.push({
         artwork: http(String(j.a ?? "")),
         original: http(String(j.o ?? "")),
-        spec: [j.f, j.m, j.e ? `刻印「${j.e}」` : ""].filter(Boolean).join(" · "),
+        spec: [j.f, j.t, j.m, j.e ? `刻印「${j.e}」` : ""].filter(Boolean).join(" · "),
         brief: String(j.b ?? ""),
         human: j.h === 1,
       });

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { SITE } from "@/lib/site";
 import { getActor } from "@/lib/actor";
-import { normalizeCustomization, priceFor, type Customization, type DesignMode } from "@/lib/products";
-import { getDict, isLocale, defaultLocale, type Locale } from "@/lib/i18n";
+import { allowedMetals, normalizeCustomization, priceFor, type Customization, type DesignMode } from "@/lib/products";
+import { getDict, isLocale, defaultLocale, variantLabel, type Locale } from "@/lib/i18n";
 import {
   attachStripeSession,
   createPendingOrder,
@@ -33,8 +33,7 @@ interface CheckoutBody {
 
 function itemDescription(c: Customization, t: ReturnType<typeof getDict>, mode: DesignMode = "ai"): string {
   const formLabel = t.product.forms[c.form]?.label ?? c.form;
-  const metalLabel = t.product.metals[c.metal]?.label ?? c.metal;
-  const parts = [formLabel, metalLabel];
+  const parts = [formLabel, variantLabel(t, c.material, c.metal)];
   if (mode === "human") parts.push(t.studio.human.badge);
   if (c.form === "necklace") parts.push(c.length);
   if (c.engraving) parts.push(`${t.studio.summary.engraving}: "${c.engraving}"`);
@@ -73,8 +72,13 @@ export async function POST(req: Request) {
           if (v && v.designId === d.id) {
             versionId = v.id;
             artworkUrl = v.imageUrl;
-            // The artwork's metal walls fix the material — price it accordingly.
-            if (v.metal && v.metal !== c.metal) c = normalizeCustomization({ ...c, metal: v.metal as Customization["metal"] });
+            // The artwork's metal colour is fixed by the version; keep the chosen material
+            // if it offers that colour (else silver, which offers every colour).
+            if (v.metal && v.metal !== c.metal) {
+              const metal = v.metal as Customization["metal"];
+              const material = allowedMetals(c.material).includes(metal) ? c.material : "silver";
+              c = normalizeCustomization({ ...c, material, metal });
+            }
           }
         }
       }
@@ -87,6 +91,7 @@ export async function POST(req: Request) {
         versionId,
         artworkUrl,
         originalUrl,
+        material: c.material,
         metal: c.metal,
         form: c.form,
         engraving: c.engraving || null,
@@ -134,6 +139,7 @@ export async function POST(req: Request) {
       itemCount: String(items.length),
       form: first.form,
       style: "enamel",
+      material: first.material,
       metal: first.metal,
       length: first.c.length,
       engraving: first.c.engraving || "",
@@ -147,6 +153,7 @@ export async function POST(req: Request) {
       if (i >= 30) return;
       const v = JSON.stringify({
         f: it.form,
+        t: it.material,
         m: it.metal,
         e: it.engraving || "",
         a: it.artworkUrl || "",

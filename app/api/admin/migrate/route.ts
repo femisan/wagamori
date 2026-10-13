@@ -128,6 +128,8 @@ const STATEMENTS = [
   `ALTER TABLE design_versions ADD COLUMN IF NOT EXISTS base_version_id uuid`,
   `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_mode text NOT NULL DEFAULT 'ai'`,
   `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_brief text`,
+  // --- material split from colour (silver can be gold / rose-gold plated) ---
+  `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS material text`,
   `CREATE INDEX IF NOT EXISTS idx_designs_user ON designs(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_versions_design ON design_versions(design_id)`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)`,
